@@ -30,12 +30,13 @@ class FitsDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         
         fitsFiles = os.listdir(root_dir)
+
         
         # TODO: make it read ALL fits files, not just this one
         tmpFile = root_dir + '/' + fitsFiles[0]
         tmpFile = fits.getdata(tmpFile, ext=0)
 
-        img_size = 512
+        img_size = 544
         tensors = []
         prev_x = 0
         ## CAUTION: THIS CROPS OFF SOME OF THE FITS DATA FILES 
@@ -61,62 +62,19 @@ class FitsDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.fits_file[idx]
 
+        
+
         if self.transform:
             sample = self.transform(sample)
+
+
+        #TODO: all transform things that are cool 
+        #TODO: normalize dataset
 
         return sample
 
 
-##############################
-# THIS CODE SHOWS 4 SAMPLES FROM THE DATASET
-##############################
-
-# fig = plt.figure() 
-
-# for i in range(len(fits_dataset)):
-# 	sample = fits_dataset[i]
-
-# 	print(i, sample.shape)
-
-# 	ax = plt.subplot(1, 4, i + 1)
-# 	plt.tight_layout()
-# 	ax.set_title('Sample #{}'.format(i))
-# 	ax.axis('off')
-# 	plt.imshow(sample, cmap='gray')
-	
-	
-
-# 	if i == 3: 
-# 		plt.show()
-# 		break
-
-
-
-################################
-# THIS CODE SHOWS BATCHED SAMPLES FROM DATASET
-# NOT CURRENTLY WORKING 
-################################
-
-# def show_landmarks_batch(sample_batched):
-#     """Show image with landmarks for a batch of samples."""
-#     images_batch = sample_batched
-#     batch_size = len(images_batch)
-#     im_size = images_batch.size(1)
-
-#     grid = utils.make_grid(images_batch)
-#     # print(grid)
-#     print(grid.shape)
-#     plt.imshow(grid.numpy().transpose(1,2,0), cmap='gray')
-#     plt.title('Batch from dataloader')
-
-# for i_batch, sample_batched in enumerate(dataloader):
-#     print(i_batch, sample_batched.size())
-
-#     # observe 4th batch and stop.
-#     if i_batch == 3:
-#         plt.figure()
-#         show_landmarks_batch(sample_batched)
-#         plt.axis('off')
-#         plt.ioff()
-#         plt.show()
-#         break
+    # normalize tensors!!  
+    # this is a normalize function 
+    def normTensor(x):
+        return (x-torch.mean(x))/torch.std(x)

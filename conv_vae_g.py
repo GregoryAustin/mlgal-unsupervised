@@ -51,15 +51,42 @@ kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 #     datasets.CIFAR10('../data', train=False, transform=transforms.ToTensor()),
 #     batch_size=args.batch_size, shuffle=False, **kwargs)
 
+##################################################################################
+#                           DATA GETS LOADED HERE
+##################################################################################
+
 fitsDir = '/home/greg/Desktop/Galaxyfits'
 
+
+
+data_transform = transforms.Compose([
+        #transforms.Resize((64,64)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop((512,512)),
+        #transforms.ColorJitter(),
+        transforms.ToTensor(),
+        #lambda x: randomInvert(x)
+    ])
+
+# train_data = datasets.ImageFolder(root='data/train',
+#                                            transform=data_transform)
+
+# train_loader = torch.utils.data.DataLoader(train_data, 
+#                                              batch_size=batch_size, shuffle=True,
+#                                              num_workers=12, drop_last=True)
+
+
+# TODO: ADD THE TRANSFORMS MATE 
 fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir)
 
-# TRAIN FLAG FOR DATALOADERg
 train_loader = torch.utils.data.DataLoader(fits_dataset,
     batch_size=args.batch_size, shuffle=True, **kwargs)
 test_loader = torch.utils.data.DataLoader(fits_dataset,
     batch_size=args.batch_size, shuffle=False, **kwargs)
+
+##################################################################################
+#                          END DATA LOAD
+##################################################################################
 
 class VAE(nn.Module):
     def __init__(self):
@@ -68,34 +95,40 @@ class VAE(nn.Module):
         # Encoder     input size: 1,512,512 (262k)
         self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=2, padding=1) #8,256,256
         self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1)#16,128,128
-        self.conv3 = nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1)#32,64,64 
+        self.conv3 = nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1)#8,64,64 
+        self.conv4 = nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1)#4,32,32 
+
         
         # Latent space
         
         # Decoder
-        self.deconv1 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.deconv2 = nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.deconv3 = nn.ConvTranspose2d(8, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv1 = nn.ConvTranspose2d(4, 8, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv3 = nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv4 = nn.ConvTranspose2d(8, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
         
         self.relu = nn.ReLU()
         
     def encode(self, x):
         out = self.relu(self.conv1(x))
-        # print("how fucking big is this 1 wtf",out.size())
+        print("how fucking big is this 1 wtf",out.size()) # 8, 64, 64
         out = self.relu(self.conv2(out))
-        # print("how fucking big is this 2 wtf",out.size())
-        out = self.conv3(out)
-        # print("how fucking big is this 3 wtf",out.size())
+        print("how fucking big is this 2 wtf",out.size()) # 16, 128, 128 
+        out = self.relu(self.conv3(out))
+        print("how fucking big is this 2 wtf",out.size())
+        out = self.conv4(out)
+        print("how fucking big is this 3 wtf",out.size())
         return out
 
     
     def decode(self, z):
         out = self.relu(self.deconv1(z))
-        # print("how fucking big is this 1 wtf",out.size())
+        print("how fucking big is this 1 wtf",out.size())
         out = self.relu(self.deconv2(out))
-        # print("how fucking big is this 2 wtf",out.size())
+        print("how fucking big is this 2 wtf",out.size())
         out = self.relu(self.deconv3(out))
-        #print("how fucking big is this 3 wtf",out.size())
+        print("how fucking big is this 3 wtf",out.size())
+        out = self.deconv4(out)
         return out
 
     def forward(self, x):

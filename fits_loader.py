@@ -24,8 +24,8 @@ class FitsDataset(Dataset):
     # be able to know all files but also 
     # be able to index without reading every file in
 
-
-    def __init__(self, root_dir, dimensions=530, transform=None):
+    # TODO: would prefer dimensions to be 530 and then randomcrop! 
+    def __init__(self, root_dir, dimensions=512, transform=None):
         
         fitsFiles = os.listdir(root_dir)
 
@@ -33,7 +33,7 @@ class FitsDataset(Dataset):
         # TODO: make it read ALL fits files, not just this one
 
         self.fits_files = fitsFiles
-        print("Reading fits files and storing dimensions for efficiency... ")
+        print("Reading fits files and storing dimensions for efficiency and logic... ")
         self.dimensions = dimensions
 
         dim_arr = []
@@ -58,9 +58,11 @@ class FitsDataset(Dataset):
         for x in range(len(self.fits_files)):
             totalRows = self.fits_dimensions[x][1] / (self.dimensions/2)
             total += (totalRows-1) * (self.fits_dimensions[x][0]/(self.dimensions/2))
+            # print(total)
         
         #print("TOTAL" + str(total))
-        return int(total)
+        return int(2820)
+        # return 2000
 
 
 # (15540, 12765)
@@ -95,6 +97,8 @@ class FitsDataset(Dataset):
 
             row = int(pixels/self.fits_dimensions[fitsFile][0]) # row number
             totalRows = self.fits_dimensions[fitsFile][1] / (self.dimensions/2)
+
+        # print("This is for fits: " + str(fitsFile))
 
         x = int(pixels % self.fits_dimensions[fitsFile][0]) # x value for pixels
         y = int(row*self.dimensions/2) # y value for pixels
@@ -136,6 +140,8 @@ class FitsDataset(Dataset):
 
 # fits_dataset = FitsDataset(root_dir=fitsDir)
 
-# for i in range(2726):
+# print(len(fits_dataset))
+
+# for i in range(len(fits_dataset)):
 #     sample = fits_dataset[i]
 

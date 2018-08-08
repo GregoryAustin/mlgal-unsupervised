@@ -25,10 +25,10 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
-parser.add_argument('--hidden-size', type=int, default=20, metavar='N',
-                    help='how big is z')
-parser.add_argument('--intermediate-size', type=int, default=128, metavar='N',
-                    help='how big is linear around z')
+# parser.add_argument('--hidden-size', type=int, default=20, metavar='N',
+                   # help='how big is z')
+# parser.add_argument('--intermediate-size', type=int, default=128, metavar='N',
+#                     help='how big is linear around z')
 # parser.add_argument('--widen-factor', type=int, default=1, metavar='N',
 #                     help='how wide is the model')
 args = parser.parse_args()
@@ -40,7 +40,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 
-kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 2} if args.cuda else {}
 
 
 # train_loader = torch.utils.data.DataLoader(
@@ -81,8 +81,8 @@ fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir)
 
 train_loader = torch.utils.data.DataLoader(fits_dataset,
     batch_size=args.batch_size, shuffle=True, **kwargs)
-test_loader = torch.utils.data.DataLoader(fits_dataset,
-    batch_size=args.batch_size, shuffle=False, **kwargs)
+#test_loader = torch.utils.data.DataLoader(fits_dataset,
+#    batch_size=args.batch_size, shuffle=False, **kwargs)
 
 ##################################################################################
 #                          END DATA LOAD
@@ -111,23 +111,23 @@ class VAE(nn.Module):
         
     def encode(self, x):
         out = self.relu(self.conv1(x))
-        print("how fucking big is this 1 wtf",out.size()) # 8, 64, 64
+        # print("how fucking big is this 1 wtf",out.size()) # 8, 64, 64
         out = self.relu(self.conv2(out))
-        print("how fucking big is this 2 wtf",out.size()) # 16, 128, 128 
+        # print("how fucking big is this 2 wtf",out.size()) # 16, 128, 128 
         out = self.relu(self.conv3(out))
-        print("how fucking big is this 2 wtf",out.size())
+        # print("how fucking big is this 2 wtf",out.size())
         out = self.conv4(out)
-        print("how fucking big is this 3 wtf",out.size())
+        # print("how fucking big is this 3 wtf",out.size())
         return out
 
     
     def decode(self, z):
         out = self.relu(self.deconv1(z))
-        print("how fucking big is this 1 wtf",out.size())
+        # print("how fucking big is this 1 wtf",out.size())
         out = self.relu(self.deconv2(out))
-        print("how fucking big is this 2 wtf",out.size())
+        # print("how fucking big is this 2 wtf",out.size())
         out = self.relu(self.deconv3(out))
-        print("how fucking big is this 3 wtf",out.size())
+        # print("how fucking big is this 3 wtf",out.size())
         out = self.deconv4(out)
         return out
 
@@ -185,13 +185,15 @@ def train(epoch):
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
 
-    print(data.data.cpu()[0][0].shape)
-    plt.imshow(data.data.cpu()[0][0], cmap='gray')
-    plt.show()
+    # print(data.data.cpu()[0][0].shape)
+    tmp = "snapshots/better_auto/" + str(epoch) + "a.png"
+    plt.imsave(tmp, data.data.cpu()[0][0], cmap='gray')
 
-    print(output.data.cpu()[0][0].shape)
-    plt.imshow(output.data.cpu()[0][0], cmap='gray')
-    plt.show()
+    # print(output.data.cpu()[0][0].shape)
+    tmp = "snapshots/better_auto/" + str(epoch) + "b.png"
+    plt.imsave(tmp, output.data.cpu()[0][0], cmap='gray')
+    
+    
 
 
     # save_image(
@@ -203,27 +205,27 @@ def train(epoch):
 
 
 
-def test(epoch):
-    model.eval()
-    test_loss = 0
-    # for i, (data, _) in enumerate(test_loader):
-    for i, data in enumerate(test_loader):
-        data = data.float()
-        if args.cuda:
-            data = data.cuda()
-        data = Variable(data, volatile=True)
-        recon_batch, mu, logvar = model(data)
-        test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
-        if epoch == args.epochs and i == 0:
-            n = min(data.size(0), 8)
-            comparison = torch.cat([data[:n],
-                                   recon_batch[:n]])
-            save_image(comparison.data.cpu(),
-                       'snapshots/conv_vae/reconstruction_' + str(epoch) +
-                       '.png', nrow=n)
+# def test(epoch):
+#     model.eval()
+#     test_loss = 0
+#     # for i, (data, _) in enumerate(test_loader):
+#     for i, data in enumerate(test_loader):
+#         data = data.float()
+#         if args.cuda:
+#             data = data.cuda()
+#         data = Variable(data, volatile=True)
+#         recon_batch, mu, logvar = model(data)
+#         test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
+#         if epoch == args.epochs and i == 0:
+#             n = min(data.size(0), 8)
+#             comparison = torch.cat([data[:n],
+#                                    recon_batch[:n]])
+#             save_image(comparison.data.cpu(),
+#                        'snapshots/conv_vae/reconstruction_' + str(epoch) +
+#                        '.png', nrow=n)
 
-    test_loss /= len(test_loader.dataset)
-    print('====> Test set loss: {:.4f}'.format(test_loss))
+#     test_loss /= len(test_loader.dataset)
+#     print('====> Test set loss: {:.4f}'.format(test_loss))
 
 
 # tester(1)

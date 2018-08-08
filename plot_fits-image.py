@@ -21,7 +21,7 @@ the file, and `matplotlib.pyplot` to display the image.
 
 ##############################################################################
 # Set up matplotlib and use a nicer set of plot parameters
-
+import os
 import matplotlib.pyplot as plt
 from astropy.visualization import astropy_mpl_style
 plt.style.use(astropy_mpl_style)
@@ -32,43 +32,47 @@ plt.style.use(astropy_mpl_style)
 from astropy.utils.data import get_pkg_data_filename
 from astropy.io import fits
 
-fits_image_name = "/home/greg/Dropbox/Galaxy_Detection/w20050521_01263_sf_st_K.fit"
+#fits_image_name = "/home/greg/Dropbox/Galaxy_Detection/w20050521_01263_sf_st_K.fit"
 
-root_dir = "/home/greg/Dropbox/Galaxy_Detection"
+root_dir = '/home/greg/Desktop/Galaxyfits'
 fitsFiles = os.listdir(root_dir)
 
+img_size = 555
+dim_arr = []
 for x in fitsFiles:
-	with fits.open(root_dir + "/" + fits_image_name) as hdul:
-		hdul.info()
-	
+	data = fits.getdata(root_dir + "/" + x)
+	x = data.shape[0] - (data.shape[0] % 555)
+	y = data.shape[1] - (data.shape[1] % 555)
+	dim_arr.append((x,y))
+
 
 ##############################################################################
 # Use `astropy.io.fits.info()` to display the structure of the file:
 
-image_file.info()
+# image_file.info()
 
-
-##############################################################################
-# Generally the image information is located in the Primary HDU, also known
-# as extension 0. Here, we use `astropy.io.fits.getdata()` to read the image
-# data from this first extension using the keyword argument ``ext=0``:
-
-image_data = fits.getdata(fits_image_name, ext=0)
 
 # ##############################################################################
-# # The data is now stored as a 2D numpy array. Print the dimensions using the
-# # shape attribute:
+# # Generally the image information is located in the Primary HDU, also known
+# # as extension 0. Here, we use `astropy.io.fits.getdata()` to read the image
+# # data from this first extension using the keyword argument ``ext=0``:
 
-print(image_data.shape)
+# image_data = fits.getdata(fits_image_name, ext=0)
 
-crop_image = image_data[500:1000, 2000:2500]
+# # ##############################################################################
+# # # The data is now stored as a 2D numpy array. Print the dimensions using the
+# # # shape attribute:
 
-print(crop_image.shape)
+# print(image_data.shape)
 
-# ##############################################################################
-# # Display the image data:
+# crop_image = image_data[500:1000, 2000:2500]
 
-plt.figure()
-plt.imshow(crop_image, cmap='gray')
-plt.colorbar()
-plt.show()
+# print(crop_image.shape)
+
+# # ##############################################################################
+# # # Display the image data:
+
+# plt.figure()
+# plt.imshow(crop_image, cmap='gray')
+# plt.colorbar()
+# plt.show()

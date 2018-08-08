@@ -37,14 +37,10 @@ from astropy.io import fits
 root_dir = '/home/greg/Desktop/Galaxyfits'
 fitsFiles = os.listdir(root_dir)
 
-img_size = 555
-dim_arr = []
 for x in fitsFiles:
 	data = fits.getdata(root_dir + "/" + x)
-	x = data.shape[0] - (data.shape[0] % 555)
-	y = data.shape[1] - (data.shape[1] % 555)
-	dim_arr.append((x,y))
-
+	print(data.shape)
+	
 
 ##############################################################################
 # Use `astropy.io.fits.info()` to display the structure of the file:

@@ -25,7 +25,7 @@ class FitsDataset(Dataset):
     # be able to index without reading every file in
 
 
-    def __init__(self, root_dir, dimensions=554, transform=None):
+    def __init__(self, root_dir, dimensions=530, transform=None):
         
         fitsFiles = os.listdir(root_dir)
 
@@ -43,14 +43,24 @@ class FitsDataset(Dataset):
             y = data.shape[1] - (data.shape[1] % dimensions)
             dim_arr.append((x,y))
 
+
+        self.curr_fits = 0
+        self.data = fits.getdata(root_dir + "/" + fitsFiles[0])
+
         self.fits_dimensions = dim_arr
         print("Done.")
         self.root_dir = root_dir
         self.transform = transform
 
     def __len__(self):
-        # calculating length is a bit more complicated 
-        return 200
+        total = 0
+
+        for x in range(len(self.fits_files)):
+            totalRows = self.fits_dimensions[x][1] / (self.dimensions/2)
+            total += (totalRows-1) * (self.fits_dimensions[x][0]/(self.dimensions/2))
+        
+        #print("TOTAL" + str(total))
+        return int(total)
 
 
 # (15540, 12765)
@@ -70,35 +80,41 @@ class FitsDataset(Dataset):
         # there is vertical interleaving and horizontal interleaving 
         #                       /2 on both  
         
-        pixels = index * self.dimensions/2
+        pixels = idx * self.dimensions/2
         
-        row = int(pixels/self.fits_dimensions[0][0]) # row number
-        totalRows = self.fits_dimensions[0][1] / self.dimensions/2
-        print(totalRows)
 
-        totalPixels = self.fits_dimensions[0][1] # start initially with 
-        # while (pixels > totalPixels):
+        # Get correct fits file 
+        fitsFile = 0
+        # initializing these for the while loop 
+       
+        row = int(pixels/self.fits_dimensions[fitsFile][0]) # row number
+        totalRows = self.fits_dimensions[fitsFile][1] / (self.dimensions/2)
+        while (row > totalRows-2):
+            pixels -= (totalRows-1)*self.fits_dimensions[fitsFile][0]
+            fitsFile += 1
 
+            row = int(pixels/self.fits_dimensions[fitsFile][0]) # row number
+            totalRows = self.fits_dimensions[fitsFile][1] / (self.dimensions/2)
 
-        pixels = pixels % width # x value for pixels
+        x = int(pixels % self.fits_dimensions[fitsFile][0]) # x value for pixels
+        y = int(row*self.dimensions/2) # y value for pixels
 
-        #TODO: test for end and beginning bounds on fits files 
-
-
-        tmpFile = root_dir + '/' + fitsFiles[0]
-        tmpFile = fits.getdata(tmpFile, ext=0)
+        if (self.curr_fits == fitsFile):
+            tmpFile = self.data
+        else:
+            tmpFile = self.root_dir + '/' + self.fits_files[fitsFile]
+            tmpFile = fits.getdata(tmpFile, ext=0)
+            self.curr_fits = fitsFile
+            self.data = tmpFile 
+        
 
         # THIS CODE CROPS FITS FILES AND RETURNS A SINGLE CHANNEL TENSOR 
-        #         crop_image = tmpFile[x:x+whatever, y:y+whatever]
-                
-        #         crop_image = crop_image[..., numpy.newaxis]
-        #         crop_image = crop_image.transpose(2, 0, 1)
-
-        #         tensor = torch.from_numpy(crop_image)
-
-        sample = self.fits_file[idx]
-
+        crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
         
+        crop_image = crop_image[..., numpy.newaxis]
+        crop_image = crop_image.transpose(2, 0, 1)
+
+        sample = torch.from_numpy(crop_image)
 
         if self.transform:
             sample = self.transform(sample)
@@ -106,6 +122,7 @@ class FitsDataset(Dataset):
 
         #TODO: all transform things that are cool 
         #TODO: normalize dataset
+        # print((x,y))
 
         return sample
 
@@ -114,3 +131,11 @@ class FitsDataset(Dataset):
     # this is a normalize function 
     def normTensor(x):
         return (x-torch.mean(x))/torch.std(x)
+
+# fitsDir = '/home/greg/Desktop/Galaxyfits'
+
+# fits_dataset = FitsDataset(root_dir=fitsDir)
+
+# for i in range(2726):
+#     sample = fits_dataset[i]
+

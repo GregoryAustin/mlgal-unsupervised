@@ -34,7 +34,13 @@ from astropy.io import fits
 
 fits_image_name = "/home/greg/Dropbox/Galaxy_Detection/w20050521_01263_sf_st_K.fit"
 
-image_file = fits.open(fits_image_name)
+root_dir = "/home/greg/Dropbox/Galaxy_Detection"
+fitsFiles = os.listdir(root_dir)
+
+for x in fitsFiles:
+	with fits.open(root_dir + "/" + fits_image_name) as hdul:
+		hdul.info()
+	
 
 ##############################################################################
 # Use `astropy.io.fits.info()` to display the structure of the file:

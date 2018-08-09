@@ -25,12 +25,17 @@ class FitsDataset(Dataset):
     # be able to index without reading every file in
 
     # TODO: would prefer dimensions to be 530 and then randomcrop! 
+    # TODO: get fits files that are h,j,k !! 
+    # TODO: figure out how to shuffle without having to constantly open and 
+    # close fits files
+    # TODO: learn how to add logistic regression to autoencoder 
+    #  or possibly something else like a CNN? 
     def __init__(self, root_dir, dimensions=512, transform=None):
         
         fitsFiles = os.listdir(root_dir)
 
         
-        # TODO: make it read ALL fits files, not just this one
+        # DONE: make it read ALL fits files, not just this one
 
         self.fits_files = fitsFiles
         print("Reading fits files and storing dimensions for efficiency and logic... ")
@@ -61,7 +66,7 @@ class FitsDataset(Dataset):
             # print(total)
         
         #print("TOTAL" + str(total))
-        return int(2820)
+        return int(total)
         # return 2000
 
 
@@ -107,7 +112,7 @@ class FitsDataset(Dataset):
             tmpFile = self.data
         else:
             tmpFile = self.root_dir + '/' + self.fits_files[fitsFile]
-            tmpFile = fits.getdata(tmpFile, ext=0)
+            tmpFile = fits.getdata(tmpFile, ext=0) # calling this fucks shuffle up
             self.curr_fits = fitsFile
             self.data = tmpFile 
         
@@ -131,7 +136,7 @@ class FitsDataset(Dataset):
         return sample
 
 
-    # normalize tensors!!  
+    # TODO: normalize tensors!!  
     # this is a normalize function 
     def normTensor(x):
         return (x-torch.mean(x))/torch.std(x)

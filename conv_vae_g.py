@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 
 ## COMMENT: original batch size was 128, changed to 32 for small dataset
-parser.add_argument('--batch-size', type=int, default=4, metavar='N',
+parser.add_argument('--batch-size', type=int, default=8, metavar='N',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 10)')
@@ -40,7 +40,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 
-kwargs = {'num_workers': 2} if args.cuda else {}
+kwargs = {'num_workers': 1} if args.cuda else {}
 
 
 # train_loader = torch.utils.data.DataLoader(
@@ -80,7 +80,7 @@ data_transform = transforms.Compose([
 fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir)
 
 train_loader = torch.utils.data.DataLoader(fits_dataset,
-    batch_size=args.batch_size, shuffle=True, **kwargs)
+    batch_size=args.batch_size, shuffle=False, **kwargs)
 #test_loader = torch.utils.data.DataLoader(fits_dataset,
 #    batch_size=args.batch_size, shuffle=False, **kwargs)
 

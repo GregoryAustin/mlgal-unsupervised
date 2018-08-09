@@ -17,6 +17,43 @@ from torchvision import transforms, utils
 import numpy
 import os
 
+default_dimens = 512
+
+
+class FitsHelper():
+    def __init__(self, root_dir, dimensions=default_dimens):
+        fitsFiles = os.listdir(root_dir)
+        print("Reading fits files and storing dimensions for efficiency and logic... ")
+        self.fitsFiles = fitsFiles 
+
+        dim_arr = []
+        for x in fitsFiles: 
+            data = fits.getdata(root_dir + "/" + x)
+            x = data.shape[0] - (data.shape[0] % dimensions)
+            y = data.shape[1] - (data.shape[1] % dimensions)
+            dim_arr.append((x,y))
+
+        self.fits_dims = dim_arr 
+        self.dimensions = dimensions
+        print("Done.")
+
+    def getFits(self):
+        return self.fitsFiles 
+
+    def getFitsDimensions(self):
+        return self.fits_dims
+
+    # this returns the indices in the dataset belonging to one fits file 
+    def getFitsFileSlice(self, idx):
+        total = 0
+        prevTotal = 0
+        for x in range(idx+1):
+            prevTotal = total 
+            totalRows = self.fits_dims[x][1] / (self.dimensions/2)
+            total += (totalRows-1) * (self.fits_dims[x][0]/(self.dimensions/2))
+        
+        return (int(prevTotal), int(total))
+
 
 class FitsDataset(Dataset):
     """Face Landmarks dataset."""
@@ -25,35 +62,38 @@ class FitsDataset(Dataset):
     # be able to index without reading every file in
 
     # TODO: would prefer dimensions to be 530 and then randomcrop! 
+    # TODO: add noise to images 
     # TODO: get fits files that are h,j,k !! 
-    # TODO: figure out how to shuffle without having to constantly open and 
-    # close fits files
     # TODO: learn how to add logistic regression to autoencoder 
     #  or possibly something else like a CNN? 
-    def __init__(self, root_dir, dimensions=512, transform=None):
+    def __init__(self, root_dir, fitshelper, dimensions=default_dimens, transform=None):
         
-        fitsFiles = os.listdir(root_dir)
+        # fitsFiles = os.listdir(root_dir) OLD
 
         
         # DONE: make it read ALL fits files, not just this one
 
-        self.fits_files = fitsFiles
-        print("Reading fits files and storing dimensions for efficiency and logic... ")
+        # self.fits_files = fitsFiles # OLD
+        self.fits_files = fitshelper.getFits() # NEW
+
+
+        # print("Reading fits files and storing dimensions for efficiency and logic... ")
         self.dimensions = dimensions
 
-        dim_arr = []
-        for x in fitsFiles:
-            data = fits.getdata(root_dir + "/" + x)
-            x = data.shape[0] - (data.shape[0] % dimensions)
-            y = data.shape[1] - (data.shape[1] % dimensions)
-            dim_arr.append((x,y))
-
+        # OLD START HERE
+        # dim_arr = []
+        # for x in fitsFiles:
+        #     data = fits.getdata(root_dir + "/" + x)
+        #     x = data.shape[0] - (data.shape[0] % dimensions)
+        #     y = data.shape[1] - (data.shape[1] % dimensions)
+        #     dim_arr.append((x,y))
+        # OLD END HERE 
 
         self.curr_fits = 0
-        self.data = fits.getdata(root_dir + "/" + fitsFiles[0])
+        self.data = fits.getdata(root_dir + "/" + self.fits_files[0])
 
-        self.fits_dimensions = dim_arr
-        print("Done.")
+        self.fits_dimensions = fitshelper.getFitsDimensions()
+        # print("Done.")
         self.root_dir = root_dir
         self.transform = transform
 

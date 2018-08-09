@@ -40,7 +40,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 
-kwargs = {'num_workers': 1} if args.cuda else {}
+kwargs = {'num_workers': 2} if args.cuda else {}
 
 
 # train_loader = torch.utils.data.DataLoader(
@@ -77,10 +77,27 @@ data_transform = transforms.Compose([
 
 
 # TODO: ADD THE TRANSFORMS MATE 
-fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir)
+fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
+fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper)
 
-train_loader = torch.utils.data.DataLoader(fits_dataset,
-    batch_size=args.batch_size, shuffle=False, **kwargs)
+
+# this avoids loading multiple FITS files into memory at once
+# and causing the program to MemoryError 
+datasets = []
+for x in range(len(fitshelper.getFits())):
+    idxs = fitshelper.getFitsFileSlice(x)
+    dtaset = []
+    for z in range(len(range(idxs[0], idxs[1]))):
+        dtaset.append(fits_dataset[z])
+
+    datasets.append(dtaset)
+
+
+train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datasets), batch_size=args.batch_size, shuffle=True, **kwargs)
+
+
+
+
 #test_loader = torch.utils.data.DataLoader(fits_dataset,
 #    batch_size=args.batch_size, shuffle=False, **kwargs)
 

@@ -17,7 +17,7 @@ from torchvision import transforms, utils
 import numpy
 import os
 
-default_dimens = 512
+default_dimens = 530
 
 
 class FitsHelper():
@@ -68,32 +68,14 @@ class FitsDataset(Dataset):
     #  or possibly something else like a CNN? 
     def __init__(self, root_dir, fitshelper, dimensions=default_dimens, transform=None):
         
-        # fitsFiles = os.listdir(root_dir) OLD
-
-        
-        # DONE: make it read ALL fits files, not just this one
-
-        # self.fits_files = fitsFiles # OLD
         self.fits_files = fitshelper.getFits() # NEW
 
-
-        # print("Reading fits files and storing dimensions for efficiency and logic... ")
         self.dimensions = dimensions
-
-        # OLD START HERE
-        # dim_arr = []
-        # for x in fitsFiles:
-        #     data = fits.getdata(root_dir + "/" + x)
-        #     x = data.shape[0] - (data.shape[0] % dimensions)
-        #     y = data.shape[1] - (data.shape[1] % dimensions)
-        #     dim_arr.append((x,y))
-        # OLD END HERE 
 
         self.curr_fits = 0
         self.data = fits.getdata(root_dir + "/" + self.fits_files[0])
 
         self.fits_dimensions = fitshelper.getFitsDimensions()
-        # print("Done.")
         self.root_dir = root_dir
         self.transform = transform
 
@@ -103,18 +85,9 @@ class FitsDataset(Dataset):
         for x in range(len(self.fits_files)):
             totalRows = self.fits_dimensions[x][1] / (self.dimensions/2)
             total += (totalRows-1) * (self.fits_dimensions[x][0]/(self.dimensions/2))
-            # print(total)
         
-        #print("TOTAL" + str(total))
         return int(total)
         # return 2000
-
-
-# (15540, 12765)
-# (15540, 12765)
-# (15540, 12765)
-# (15540, 12765)
-# (15540, 12765)
 
 
     def __getitem__(self, idx):
@@ -180,6 +153,37 @@ class FitsDataset(Dataset):
     # this is a normalize function 
     def normTensor(x):
         return (x-torch.mean(x))/torch.std(x)
+
+class RandomCrop(object):
+    """Crop randomly the image in a sample.
+
+    Args:
+        output_size (tuple or int): Desired output size. If int, square crop
+            is made.
+    """
+
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, tuple))
+        if isinstance(output_size, int):
+            self.output_size = (output_size, output_size)
+        else:
+            assert len(output_size) == 2
+            self.output_size = output_size
+
+    def __call__(self, sample):
+        image = sample
+
+        h, w = image.shape[:2]
+        new_h, new_w = self.output_size
+
+        top = np.random.randint(0, h - new_h)
+        left = np.random.randint(0, w - new_w)
+
+        image = image[top: top + new_h,
+                      left: left + new_w]
+        print(image)
+        return image
+
 
 # fitsDir = '/home/greg/Desktop/Galaxyfits'
 

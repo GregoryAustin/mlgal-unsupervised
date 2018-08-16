@@ -61,10 +61,9 @@ fitsDir = '/home/greg/Desktop/Galaxyfits'
 
 data_transform = transforms.Compose([
         #transforms.Resize((64,64)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomCrop((512,512)),
+        fits_loader.RandomCrop(512)
         #transforms.ColorJitter(),
-        transforms.ToTensor(),
+        # transforms.ToTensor(),
         #lambda x: randomInvert(x)
     ])
 
@@ -78,7 +77,7 @@ data_transform = transforms.Compose([
 
 # TODO: ADD THE TRANSFORMS MATE 
 fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
-fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper)
+fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
 
 
 # this avoids loading multiple FITS files into memory at once

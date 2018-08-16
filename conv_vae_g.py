@@ -77,11 +77,14 @@ data_transform = transforms.Compose([
 
 # TODO: ADD THE TRANSFORMS MATE 
 fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
+# by default this normalizes and converts to tensor 
 fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
 
 
 # this avoids loading multiple FITS files into memory at once
 # and causing the program to MemoryError 
+
+print("Reading data...")
 datasets = []
 for x in range(len(fitshelper.getFits())):
     idxs = fitshelper.getFitsFileSlice(x)
@@ -90,7 +93,7 @@ for x in range(len(fitshelper.getFits())):
         dtaset.append(fits_dataset[z])
 
     datasets.append(dtaset)
-
+print("Done. ")
 
 train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datasets), batch_size=args.batch_size, shuffle=True, **kwargs)
 
@@ -178,9 +181,25 @@ def tester(epoch):
 def train(epoch):
     model.train()
     train_loss = 0
+
+    lossGraph = []
     # for batch_idx, (data, _) in enumerate(train_loader):
+    maxs = []
+    mins = []
+    means = []
+
     for batch_idx, data in enumerate(train_loader):
         data = data.float()
+
+        #normalize test 
+        # data = (data-torch.mean(data))/torch.std(data)
+
+        data = (data + 2452.3423)/115955.53125
+        # maxs.append(torch.max(data))
+        # means.append(torch.mean(data))
+        # mins.append(torch.min(data))
+        #normalize test
+
         data = Variable(data)
         if args.cuda:
             data = data.cuda()
@@ -198,8 +217,19 @@ def train(epoch):
                 100. * batch_idx / len(train_loader),
                 loss.data[0] / len(data)))
 
+        lossGraph.append(loss.data[0] / len(data))
+
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
+
+    print("MAX: " + str(max(maxs)))
+    print("MIN: ", min(mins))
+    print("MEANS: ", sum(means)/len(means))
+
+    # plt.plot(lossGraph)
+    # plt.ylabel('loss')
+    # plt.xlabel('iteration count')
+    # plt.show()
 
     # print(data.data.cpu()[0][0].shape)
     tmp = "snapshots/better_auto/" + str(epoch) + "a.png"
@@ -209,15 +239,10 @@ def train(epoch):
     tmp = "snapshots/better_auto/" + str(epoch) + "b.png"
     plt.imsave(tmp, output.data.cpu()[0][0], cmap='gray')
     
-    
+    save_image(torch.cat((data.data.cpu(), data.data.cpu(), data.data.cpu()),1), str(epoch)+'a.png',nrow=3)
+    save_image(torch.cat((output.data.cpu(), output.data.cpu(), output.data.cpu()),1), str(epoch)+'b.png',nrow=3)
 
-
-    # save_image(
-    #         torch.cat((
-    #             torch.cat((data.data.cpu(), data.data.cpu(), data.data.cpu()),1),
-    #             torch.cat((output.data.cpu(), output.data.cpu(), output.data.cpu()),1)),
-    #         0),
-    #     '0'+str((0))+'.png',nrow=1)
+    # 
 
 
 

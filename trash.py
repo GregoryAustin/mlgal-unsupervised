@@ -28,6 +28,7 @@ class GaussianNoise(nn.Module):
             return x + noise        
         else:
             return x
+
 def randomInvert(x):
     if not not getrandbits(1):
         return x

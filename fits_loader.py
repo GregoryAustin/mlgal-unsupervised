@@ -61,11 +61,11 @@ class FitsDataset(Dataset):
     # be able to know all files but also 
     # be able to index without reading every file in
 
-    # TODO: would prefer dimensions to be 530 and then randomcrop! 
+    # DONE: would prefer dimensions to be 530 and then randomcrop! 
     # TODO: add noise to images 
-    # TODO: get fits files that are h,j,k !! 
-    # TODO: learn how to add logistic regression to autoencoder 
-    #  or possibly something else like a CNN? 
+    # DONE: normalize dataset
+
+    # TODO: CNN 
     def __init__(self, root_dir, fitshelper, dimensions=default_dimens, transform=None):
         
         self.fits_files = fitshelper.getFits() # NEW
@@ -133,26 +133,39 @@ class FitsDataset(Dataset):
         # THIS CODE CROPS FITS FILES AND RETURNS A SINGLE CHANNEL TENSOR 
         crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
         
+        if self.transform:
+            crop_image = self.transform(crop_image)
+
+        
+        
+
+        # Converting to one channel tensor 
         crop_image = crop_image[..., numpy.newaxis]
         crop_image = crop_image.transpose(2, 0, 1)
 
         sample = torch.from_numpy(crop_image)
 
-        if self.transform:
-            sample = self.transform(sample)
-
-
-        #TODO: all transform things that are cool 
-        #TODO: normalize dataset
-        # print((x,y))
-
+        # normalizing 
+        # sample = (sample-torch.mean(sample))/torch.std(sample)
+        
         return sample
 
 
-    # TODO: normalize tensors!!  
-    # this is a normalize function 
-    def normTensor(x):
-        return (x-torch.mean(x))/torch.std(x)
+# 0.1 = 10% 
+class GaussianNoise(nn.Module):
+    def __init__(self, stddev):
+        super().__init__()
+        self.stddev = stddev
+
+    def forward(self, x):
+        if self.training:
+            noise = x.data.new(x.size()).normal_(0, self.stddev).cuda()
+            return x + noise 
+        else:
+            return x
+
+
+
 
 class RandomCrop(object):
     """Crop randomly the image in a sample.
@@ -176,21 +189,9 @@ class RandomCrop(object):
         h, w = image.shape[:2]
         new_h, new_w = self.output_size
 
-        top = np.random.randint(0, h - new_h)
-        left = np.random.randint(0, w - new_w)
+        top = numpy.random.randint(0, h - new_h)
+        left = numpy.random.randint(0, w - new_w)
 
-        image = image[top: top + new_h,
-                      left: left + new_w]
-        print(image)
+        image = image[top: top + new_h, left: left + new_w]
+        
         return image
-
-
-# fitsDir = '/home/greg/Desktop/Galaxyfits'
-
-# fits_dataset = FitsDataset(root_dir=fitsDir)
-
-# print(len(fits_dataset))
-
-# for i in range(len(fits_dataset)):
-#     sample = fits_dataset[i]
-

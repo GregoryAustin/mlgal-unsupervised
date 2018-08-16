@@ -130,23 +130,23 @@ class VAE(nn.Module):
         
     def encode(self, x):
         out = self.relu(self.conv1(x))
-        # print("how fucking big is this 1 wtf",out.size()) # 8, 64, 64
+        # print("how big is this 1 ",out.size()) # 8, 64, 64
         out = self.relu(self.conv2(out))
-        # print("how fucking big is this 2 wtf",out.size()) # 16, 128, 128 
+        # print("how big is this 2 ",out.size()) # 16, 128, 128 
         out = self.relu(self.conv3(out))
-        # print("how fucking big is this 2 wtf",out.size())
+        # print("how big is this 2 ",out.size())
         out = self.conv4(out)
-        # print("how fucking big is this 3 wtf",out.size())
+        # print("how big is this 3 ",out.size())
         return out
 
     
     def decode(self, z):
         out = self.relu(self.deconv1(z))
-        # print("how fucking big is this 1 wtf",out.size())
+        # print("how big is this 1 ",out.size())
         out = self.relu(self.deconv2(out))
-        # print("how fucking big is this 2 wtf",out.size())
+        # print("how big is this 2 ",out.size())
         out = self.relu(self.deconv3(out))
-        # print("how fucking big is this 3 wtf",out.size())
+        # print("how big is this 3 ",out.size())
         out = self.deconv4(out)
         return out
 
@@ -182,19 +182,19 @@ def train(epoch):
     model.train()
     train_loss = 0
 
-    lossGraph = []
-    # for batch_idx, (data, _) in enumerate(train_loader):
-    maxs = []
-    mins = []
-    means = []
+    # lossGraph = []
+    # # for batch_idx, (data, _) in enumerate(train_loader):
+    # maxs = []
+    # mins = []
+    # means = []
 
     for batch_idx, data in enumerate(train_loader):
         data = data.float()
 
         #normalize test 
-        # data = (data-torch.mean(data))/torch.std(data)
+        data = (data-torch.mean(data))/torch.std(data)
 
-        data = (data + 2452.3423)/115955.53125
+        # data = torch.sqrt(data + 2453)
         # maxs.append(torch.max(data))
         # means.append(torch.mean(data))
         # mins.append(torch.min(data))
@@ -217,14 +217,14 @@ def train(epoch):
                 100. * batch_idx / len(train_loader),
                 loss.data[0] / len(data)))
 
-        lossGraph.append(loss.data[0] / len(data))
+        # lossGraph.append(loss.data[0] / len(data))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
 
-    print("MAX: " + str(max(maxs)))
-    print("MIN: ", min(mins))
-    print("MEANS: ", sum(means)/len(means))
+    # print("MAX: " + str(max(maxs)))
+    # print("MIN: ", min(mins))
+    # print("MEANS: ", sum(means)/len(means))
 
     # plt.plot(lossGraph)
     # plt.ylabel('loss')
@@ -232,17 +232,25 @@ def train(epoch):
     # plt.show()
 
     # print(data.data.cpu()[0][0].shape)
+
     tmp = "snapshots/better_auto/" + str(epoch) + "a.png"
-    plt.imsave(tmp, data.data.cpu()[0][0], cmap='gray')
+    dt = []
+    for x in range(len(data.data.cpu())):
+        dt.append(data.data.cpu()[x][0])
+        dt.append(torch.zeros(data.data.cpu()[x][0].shape[0],4))
+    xy = []
+    xy.append(torch.cat((dt), 1))
+    xy.append(torch.zeros(4, data.data.cpu()[0][0].shape[1]))
 
-    # print(output.data.cpu()[0][0].shape)
-    tmp = "snapshots/better_auto/" + str(epoch) + "b.png"
-    plt.imsave(tmp, output.data.cpu()[0][0], cmap='gray')
-    
-    save_image(torch.cat((data.data.cpu(), data.data.cpu(), data.data.cpu()),1), str(epoch)+'a.png',nrow=3)
-    save_image(torch.cat((output.data.cpu(), output.data.cpu(), output.data.cpu()),1), str(epoch)+'b.png',nrow=3)
+    dt = []
+    for x in range(len(output.data.cpu())):
+        dt.append(output.data.cpu()[x][0])
+        dt.append(torch.zeros(output.data.cpu()[x][0].shape[1],4))
 
-    # 
+    xy.append(torch.cat((dt), 1))
+
+    plt.imsave(tmp, torch.cat((xy), 0), cmap='gray')
+
 
 
 

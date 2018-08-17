@@ -125,7 +125,7 @@ class FitsDataset(Dataset):
             tmpFile = self.data
         else:
             tmpFile = self.root_dir + '/' + self.fits_files[fitsFile]
-            tmpFile = fits.getdata(tmpFile, ext=0) # calling this fucks shuffle up
+            tmpFile = fits.getdata(tmpFile, ext=0) 
             self.curr_fits = fitsFile
             self.data = tmpFile 
         
@@ -136,17 +136,11 @@ class FitsDataset(Dataset):
         if self.transform:
             crop_image = self.transform(crop_image)
 
-        
-        
-
         # Converting to one channel tensor 
         crop_image = crop_image[..., numpy.newaxis]
         crop_image = crop_image.transpose(2, 0, 1)
 
         sample = torch.from_numpy(crop_image)
-
-        # normalizing 
-        # sample = (sample-torch.mean(sample))/torch.std(sample)
         
         return sample
 

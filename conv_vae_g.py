@@ -25,6 +25,8 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
+parser.add_argument('--img-interval', type=int, default=500, metavar='N',
+                    help='how many batches to wait before saving images')
 # parser.add_argument('--hidden-size', type=int, default=20, metavar='N',
                    # help='how big is z')
 # parser.add_argument('--intermediate-size', type=int, default=128, metavar='N',
@@ -42,42 +44,27 @@ if args.cuda:
 
 kwargs = {'num_workers': 2} if args.cuda else {}
 
-
-# train_loader = torch.utils.data.DataLoader(
-#     datasets.CIFAR10('../data', train=True, download=True,
-#                      transform=transforms.ToTensor()),
-#     batch_size=args.batch_size, shuffle=True, **kwargs)
-# test_loader = torch.utils.data.DataLoader(
-#     datasets.CIFAR10('../data', train=False, transform=transforms.ToTensor()),
-#     batch_size=args.batch_size, shuffle=False, **kwargs)
-
 ##################################################################################
 #                           DATA GETS LOADED HERE
 ##################################################################################
+
+fitsDir = '/media/greg/Main Disk 2/UNLABELED DATA/bulge'
 
 fitsDir = '/home/greg/Desktop/Galaxyfits'
 
 
 
 data_transform = transforms.Compose([
-        #transforms.Resize((64,64)),
         fits_loader.RandomCrop(512)
-        #transforms.ColorJitter(),
-        # transforms.ToTensor(),
-        #lambda x: randomInvert(x)
     ])
 
-# train_data = datasets.ImageFolder(root='data/train',
-#                                            transform=data_transform)
 
-# train_loader = torch.utils.data.DataLoader(train_data, 
-#                                              batch_size=batch_size, shuffle=True,
-#                                              num_workers=12, drop_last=True)
+# DONE: ADD TRANSFORMS
+# TODO: RANDOM GAUSSIAN NOISE 
+# TODO: RANDOM HORIZONTAL FLIP 
+# TODO: RANDOM VERTICAL FLIP 
 
-
-# TODO: ADD THE TRANSFORMS MATE 
 fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
-# by default this normalizes and converts to tensor 
 fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
 
 
@@ -183,22 +170,31 @@ def train(epoch):
     train_loss = 0
 
     # lossGraph = []
-    # # for batch_idx, (data, _) in enumerate(train_loader):
+    # # # for batch_idx, (data, _) in enumerate(train_loader):
     # maxs = []
     # mins = []
     # means = []
 
+    min_x = -142.305237
+    max_x = 41916.58203125
+
+    counter = 0 
+
     for batch_idx, data in enumerate(train_loader):
         data = data.float()
 
-        #normalize test 
-        data = (data-torch.mean(data))/torch.std(data)
+        # normalize stuff 
+        # data = (data-torch.mean(data))/torch.std(data) OLD
+        # data = torch.sqrt(data + 2453) OLD 
 
-        # data = torch.sqrt(data + 2453)
-        # maxs.append(torch.max(data))
+        # maxs.append(torch.max(data)) FOR CHECKING MIN MAX MEAN
         # means.append(torch.mean(data))
         # mins.append(torch.min(data))
-        #normalize test
+        # normalize stuff
+
+        # normalizes the data 
+        data = (data - min_x) / (max_x - min_x)
+        
 
         data = Variable(data)
         if args.cuda:
@@ -212,10 +208,30 @@ def train(epoch):
 
         train_loss += loss.data[0]
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.10f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
                 loss.data[0] / len(data)))
+
+        if batch_idx % args.img_interval == 0:
+            tmp = "snapshots/better_auto/" + str(epoch) + '_' + str(counter) + ".png"
+            counter += 1
+            dt = []
+            for x in range(len(data.data.cpu())):
+                dt.append(data.data.cpu()[x][0])
+                dt.append(torch.ones(data.data.cpu()[x][0].shape[1],4))
+            xy = []
+            xy.append(torch.cat((dt), 1))
+            xy.append(torch.ones(4, xy[0].shape[1]))
+
+            dt = []
+            for x in range(len(output.data.cpu())):
+                dt.append(output.data.cpu()[x][0])
+                dt.append(torch.ones(output.data.cpu()[x][0].shape[1],4))
+
+            xy.append(torch.cat((dt), 1))
+
+            plt.imsave(tmp, torch.cat((xy), 0), cmap='gray')
 
         # lossGraph.append(loss.data[0] / len(data))
 
@@ -233,24 +249,7 @@ def train(epoch):
 
     # print(data.data.cpu()[0][0].shape)
 
-    tmp = "snapshots/better_auto/" + str(epoch) + "a.png"
-    dt = []
-    for x in range(len(data.data.cpu())):
-        dt.append(data.data.cpu()[x][0])
-        dt.append(torch.zeros(data.data.cpu()[x][0].shape[0],4))
-    xy = []
-    xy.append(torch.cat((dt), 1))
-    xy.append(torch.zeros(4, data.data.cpu()[0][0].shape[1]))
-
-    dt = []
-    for x in range(len(output.data.cpu())):
-        dt.append(output.data.cpu()[x][0])
-        dt.append(torch.zeros(output.data.cpu()[x][0].shape[1],4))
-
-    xy.append(torch.cat((dt), 1))
-
-    plt.imsave(tmp, torch.cat((xy), 0), cmap='gray')
-
+    
 
 
 

@@ -22,22 +22,18 @@ default_dimens = 530
 
 
 class FitsHelper():
-    def __init__(self, root_dir, dimensions=default_dimens, galaxies=None):
+    def __init__(self, root_dir, dimensions=default_dimens):
         fitsFiles = os.listdir(root_dir)
         print("Reading fits files and storing dimensions for efficiency and logic... ")
+        self.root_dir = root_dir 
         self.fitsFiles = fitsFiles 
 
         dim_arr = []
         for x in fitsFiles: 
             data = fits.getdata(root_dir + "/" + x)
-            # print (data.shape) # TEST
             x = data.shape[0] - (data.shape[0] % dimensions)
             y = data.shape[1] - (data.shape[1] % dimensions)
             dim_arr.append((x,y))
-
-        self.galaxies = galaxies
-        if (self.galaxies):
-            self.galaxies = pd.read_csv(self.galaxies, delim_whitespace=True)
 
         self.fits_dims = dim_arr 
         self.dimensions = dimensions
@@ -45,20 +41,6 @@ class FitsHelper():
 
     def getFits(self):
         return self.fitsFiles 
-
-    def getGalaxies(self):
-        # print(self.galaxies.iloc[:, 0])
-        counter = 0 
-        for x in range(len(self.galaxies)):
-            for y in range(len(self.fitsFiles)):
-                if self.galaxies.iloc[x, 0] in self.fitsFiles[y]:
-                    counter += 1 
-                    break
-
-        print(counter) 
-            # print(galaxy_name)
-
-
 
     def getFitsDimensions(self):
         return self.fits_dims
@@ -74,17 +56,111 @@ class FitsHelper():
         
         return (int(prevTotal), int(total))
 
+class GalaxyDataset(Dataset):
+    def __init__(self, root_dir, galaxies, dimensions=default_dimens, transform=None):
+               
+        self.galaxies = pd.read_csv(galaxies, delim_whitespace=True)
+        self.fits_files = os.listdir(root_dir)
+        self.dimensions = dimensions
+        self.root_dir = root_dir
+        self.transform = transform
+
+        counter = 0 
+        smallCount = 0
+        bigCount = 0
+        fileCrop = 384
+
+        # TODO: create list of available galaxies (prune unscalables) with the galaxy file and data dimensions
+        # TODO: this includes target values!  
+        galaxs = []
+
+        # index 14 is the class in the galaxies file  
+
+        for x in range(len(self.galaxies)):
+            for y in range(len(self.fits_files)):
+                if self.galaxies.iloc[x, 0] in self.fits_files[y]:
+                    
+                    data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
+
+                    if (fileCrop/data.shape[0] > 0.6 or fileCrop/data.shape[1] > 0.6): # get rid of big images 
+                        galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14]))
+                    else:
+                        bigCount += 1
+                        
+
+        print("Galaxies count :", len(galaxs))
+        print("Big count:      ", bigCount) 
+        print("Total in file  :", len(self.galaxies))
+                   
+                    
+        # TODO: random crop images 256 * 256
+        # TODO: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
+
+    def centralCrop(img,tw,th):
+        w, h = img.shape
+        x1 = int(round((w - tw) / 2.))
+        y1 = int(round((h - th) / 2.))
+        return img[x1:x1+tw,y1:y1+th]
+
+
+    def __len__(self):
+        total = 0
+
+
+
+        return int(total)
+
+    def __getitem__(self, idx):
+        # idx is index to a single galaxy fits image
+        
+        tmpFile = self.root_dir + '/' + self.fits_files[fitsFile]
+        tmpFile = fits.getdata(tmpFile, ext=0) 
+        
+
+        # THIS CODE CROPS FITS FILES AND RETURNS A SINGLE CHANNEL TENSOR 
+        crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
+        
+        if self.transform:
+            crop_image = self.transform(crop_image)
+
+        if (fileCrop/data.shape[0] < 0.6 or fileCrop/data.shape[1] < 0.6): # get rid of big images 
+            print(self.fits_files[y] + ': ' + str(data.shape))
+            print(str(fileCrop/data.shape[0]) + ', ' + str(fileCrop/data.shape[1]))
+            bigCount += 1
+        elif (fileCrop/data.shape[0] > 1 or fileCrop/data.shape[1] > 1):
+            print(self.fits_files[y] + ': ' + str(data.shape))
+            print(str(fileCrop/data.shape[0]) + ', ' + str(fileCrop/data.shape[1]))
+            smallCount += 1
+        else: # TODO: crop normal images to 350 * 350 # DONE ON THE FLY AND NOT WITH INIT!!! 
+            counter += 1 
+
+        # Converting to one channel tensor 
+        crop_image = crop_image[..., numpy.newaxis]
+        crop_image = crop_image.transpose(2, 0, 1)
+
+        sample = torch.from_numpy(crop_image)
+        
+        # TODO: return a tuple (input, target) 
+            # target is binary for now: galaxy or not galaxy 
+        return sample
+
+        # TODO: create galaxy reader 
+        # TODO: rework resnet, 
+            # input filter 3->1
+            # out filter 2 classes (galaxy and not galaxy)
+            # print(galaxy_name)
+
 #############################################
 # TESTING 
 
 fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
-galax = '/home/greg/Desktop/LabelledData/NN project/2M_col_corr_comb_param_gal.dat'
+galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
 
-fitshelper = FitsHelper(fitsDir, galaxies = galax)
-fitshelper.getGalaxies()
+GalaxyDataset(fitsDir, galax, 256)
 
 # TESTING 
 #############################################
+
 
 
 class FitsDataset(Dataset):
@@ -95,9 +171,10 @@ class FitsDataset(Dataset):
 
     # DONE: would prefer dimensions to be 530 and then randomcrop! 
     # TODO: add noise to images 
+    # TODO: add random rotate
     # DONE: normalize dataset
 
-    # TODO: CNN 
+    # DONE: CNN 
     def __init__(self, root_dir, fitshelper, dimensions=default_dimens, transform=None):
         
         self.fits_files = fitshelper.getFits() # NEW

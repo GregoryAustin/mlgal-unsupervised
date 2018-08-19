@@ -27,6 +27,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
+
+# TODO: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
 # Data
 print('==> Preparing data..')
 transform_train = transforms.Compose([

@@ -64,6 +64,10 @@ class Bottleneck(nn.Module):
         return out
 
 
+# DONE: rework resnet, 
+    # input filter 3->1
+    # out filter 2 classes (galaxy and not galaxy) check line 105
+    # print(galaxy_name)
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
         super(ResNet, self).__init__()

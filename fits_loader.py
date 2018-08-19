@@ -57,98 +57,76 @@ class FitsHelper():
         return (int(prevTotal), int(total))
 
 class GalaxyDataset(Dataset):
-    def __init__(self, root_dir, galaxies, dimensions=default_dimens, transform=None):
+    # TODO: SO MUCH I/O going on, maybe do what FitsDataset does and workaround
+    def __init__(self, root_dir, galaxies, transform=None):
                
         self.galaxies = pd.read_csv(galaxies, delim_whitespace=True)
         self.fits_files = os.listdir(root_dir)
-        self.dimensions = dimensions
         self.root_dir = root_dir
         self.transform = transform
 
-        counter = 0 
-        smallCount = 0
-        bigCount = 0
-        fileCrop = 384
+        self.fileCrop = 384 # NO FILES ARE ACTUALLY CROPPED TO 384, this has become more of a img size guide 
 
-        # TODO: create list of available galaxies (prune unscalables) with the galaxy file and data dimensions
-        # TODO: this includes target values!  
+        # TODO: POLISH:
+            # TODO: discripency between galaxy list file and total galaxies returned (including not included big files)
+            # TODO: check size of galaxies in bigger images 
+
         galaxs = []
 
-        # index 14 is the class in the galaxies file  
-
+        # THE PURPOSE OF THIS IS TO GET RID OF BIGGER IMAGES 
+        
         for x in range(len(self.galaxies)):
             for y in range(len(self.fits_files)):
-                if self.galaxies.iloc[x, 0] in self.fits_files[y]:
-                    
+                if self.galaxies.iloc[x, 0] in self.fits_files[y]: # index 0 is the ID of the file 
                     data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
 
-                    if (fileCrop/data.shape[0] > 0.6 or fileCrop/data.shape[1] > 0.6): # get rid of big images 
-                        galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14]))
-                    else:
-                        bigCount += 1
-                        
-
-        print("Galaxies count :", len(galaxs))
-        print("Big count:      ", bigCount) 
-        print("Total in file  :", len(self.galaxies))
-                   
-                    
-        # TODO: random crop images 256 * 256
-        # TODO: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
-
-    def centralCrop(img,tw,th):
-        w, h = img.shape
-        x1 = int(round((w - tw) / 2.))
-        y1 = int(round((h - th) / 2.))
-        return img[x1:x1+tw,y1:y1+th]
-
+                    if (self.fileCrop/data.shape[0] > 0.6 or self.fileCrop/data.shape[1] > 0.6): # get rid of big images 
+                        galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14])) # index 14 is the class in the galaxies file  
+                    break
+        
+        self.galaxies = galaxs 
 
     def __len__(self):
-        total = 0
-
-
-
-        return int(total)
+        return len(self.galaxies)
 
     def __getitem__(self, idx):
         # idx is index to a single galaxy fits image
-        
-        tmpFile = self.root_dir + '/' + self.fits_files[fitsFile]
-        tmpFile = fits.getdata(tmpFile, ext=0) 
-        
+        img = self.root_dir + '/' + self.galaxies[idx][0] 
+        img = fits.getdata(img, ext=0) 
 
-        # THIS CODE CROPS FITS FILES AND RETURNS A SINGLE CHANNEL TENSOR 
-        crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
-        
+        # DONE: crop normal images to 350 * 350 # DONE ON THE FLY AND NOT WITH INIT!!! 
+        # TODO POLISH: make this better AKA less magic numbers 
+
+        # print("Before crop: ", img.shape)
+        if (0.6 < self.fileCrop/self.galaxies[idx][1][0] < 1. or 0.6 < self.fileCrop/self.galaxies[idx][1][1] < 1.): 
+            d = 350
+            x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
+            y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
+            img = img[x1:x1+d,y1:y1+d]
+
+        # print("After crop: ", img.shape)
+
         if self.transform:
-            crop_image = self.transform(crop_image)
-
-        if (fileCrop/data.shape[0] < 0.6 or fileCrop/data.shape[1] < 0.6): # get rid of big images 
-            print(self.fits_files[y] + ': ' + str(data.shape))
-            print(str(fileCrop/data.shape[0]) + ', ' + str(fileCrop/data.shape[1]))
-            bigCount += 1
-        elif (fileCrop/data.shape[0] > 1 or fileCrop/data.shape[1] > 1):
-            print(self.fits_files[y] + ': ' + str(data.shape))
-            print(str(fileCrop/data.shape[0]) + ', ' + str(fileCrop/data.shape[1]))
-            smallCount += 1
-        else: # TODO: crop normal images to 350 * 350 # DONE ON THE FLY AND NOT WITH INIT!!! 
-            counter += 1 
+            img = self.transform(img)
+        # DONE: random crop images 256 * 256
 
         # Converting to one channel tensor 
-        crop_image = crop_image[..., numpy.newaxis]
-        crop_image = crop_image.transpose(2, 0, 1)
+        img = img[..., numpy.newaxis]
+        img = img.transpose(2, 0, 1)
 
-        sample = torch.from_numpy(crop_image)
+        sample = torch.from_numpy(img)
         
+        target = 0
+        if (6 <= galaxies[idx][2] <= 9):
+            target = 1 
+
+
         # TODO: return a tuple (input, target) 
             # target is binary for now: galaxy or not galaxy 
-        return sample
+        return (sample, target)
 
-        # TODO: create galaxy reader 
-        # TODO: rework resnet, 
-            # input filter 3->1
-            # out filter 2 classes (galaxy and not galaxy)
-            # print(galaxy_name)
+
+#TODO: add galaxyloader code to classifier 
 
 #############################################
 # TESTING 
@@ -156,7 +134,10 @@ class GalaxyDataset(Dataset):
 fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
 galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
 
-GalaxyDataset(fitsDir, galax, 256)
+dataset = GalaxyDataset(fitsDir, galax)
+for x in dataset:
+    print(str(x[0].shape) + ' ' + str(x[1]))
+
 
 # TESTING 
 #############################################

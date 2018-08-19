@@ -60,9 +60,6 @@ data_transform = transforms.Compose([
 
 
 # DONE: ADD TRANSFORMS
-# TODO: RANDOM GAUSSIAN NOISE 
-# TODO: RANDOM HORIZONTAL FLIP 
-# TODO: RANDOM VERTICAL FLIP 
 
 fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
 fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)

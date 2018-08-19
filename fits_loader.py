@@ -64,6 +64,7 @@ class GalaxyDataset(Dataset):
         self.fits_files = os.listdir(root_dir)
         self.root_dir = root_dir
         self.transform = transform
+        count = 0
 
         self.fileCrop = 384 # NO FILES ARE ACTUALLY CROPPED TO 384, this has become more of a img size guide 
 
@@ -80,8 +81,12 @@ class GalaxyDataset(Dataset):
                 if self.galaxies.iloc[x, 0] in self.fits_files[y]: # index 0 is the ID of the file 
                     data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
 
+
                     if (self.fileCrop/data.shape[0] > 0.6 or self.fileCrop/data.shape[1] > 0.6): # get rid of big images 
-                        galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14])) # index 14 is the class in the galaxies file  
+                        if(data.shape[0] > 256 and data.shape[1] > 256):
+                            # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
+                            count += 1
+                            galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14])) # index 14 is the class in the galaxies file  
                     break
         
         self.galaxies = galaxs 
@@ -97,18 +102,19 @@ class GalaxyDataset(Dataset):
         # DONE: crop normal images to 350 * 350 # DONE ON THE FLY AND NOT WITH INIT!!! 
         # TODO POLISH: make this better AKA less magic numbers 
 
-        # print("Before crop: ", img.shape)
+        
         if (0.6 < self.fileCrop/self.galaxies[idx][1][0] < 1. or 0.6 < self.fileCrop/self.galaxies[idx][1][1] < 1.): 
             d = 350
             x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
             y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
             img = img[x1:x1+d,y1:y1+d]
 
-        # print("After crop: ", img.shape)
-
-        if self.transform:
+        
+        # print("Before crop: ", img.shape)
+        if self.transform: # DONE: random crop images 256 * 256
             img = self.transform(img)
-        # DONE: random crop images 256 * 256
+        
+        # print("After crop: ", img.shape)
 
         # Converting to one channel tensor 
         img = img[..., numpy.newaxis]
@@ -117,31 +123,13 @@ class GalaxyDataset(Dataset):
         sample = torch.from_numpy(img)
         
         target = 0
-        if (6 <= galaxies[idx][2] <= 9):
+        if (6 <= self.galaxies[idx][2] <= 9):
             target = 1 
 
 
-        # TODO: return a tuple (input, target) 
+        # DONE: return a tuple (input, target) 
             # target is binary for now: galaxy or not galaxy 
-        return (sample, target)
-
-
-#TODO: add galaxyloader code to classifier 
-
-#############################################
-# TESTING 
-
-fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
-galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
-
-dataset = GalaxyDataset(fitsDir, galax)
-for x in dataset:
-    print(str(x[0].shape) + ' ' + str(x[1]))
-
-
-# TESTING 
-#############################################
-
+        return (sample.float(), target)
 
 
 class FitsDataset(Dataset):
@@ -177,8 +165,6 @@ class FitsDataset(Dataset):
             total += (totalRows-1) * (self.fits_dimensions[x][0]/(self.dimensions/2))
         
         return int(total)
-        # return 2000
-
 
     def __getitem__(self, idx):
         # given an index i
@@ -248,7 +234,9 @@ class GaussianNoise(nn.Module):
         else:
             return x
 
-
+# TODO: RANDOM GAUSSIAN NOISE 
+# TODO: RANDOM HORIZONTAL FLIP 
+# TODO: RANDOM VERTICAL FLIP 
 
 
 class RandomCrop(object):
@@ -271,9 +259,13 @@ class RandomCrop(object):
         image = sample
 
         h, w = image.shape[:2]
+        # print(image.shape)
         new_h, new_w = self.output_size
 
         top = numpy.random.randint(0, h - new_h)
+        # print(w - new_w)
+        # print('w: ', w)
+        # print('new_w:', new_w)
         left = numpy.random.randint(0, w - new_w)
 
         image = image[top: top + new_h, left: left + new_w]

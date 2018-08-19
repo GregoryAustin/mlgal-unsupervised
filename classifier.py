@@ -15,6 +15,7 @@ import os
 import argparse
 
 import resnet
+import fits_loader
 from utils import progress_bar
 
 
@@ -28,33 +29,34 @@ best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 
+
+
 # TODO: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
 # Data
 print('==> Preparing data..')
+
+fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
+galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
+
+# TODO: normalize 
+
 transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    fits_loader.RandomCrop(256)
 ])
 
-transform_test = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-])
+trainset = fits_loader.GalaxyDataset(fitsDir, galax, transform_train) # TODO: split the train set and test set 
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=2)
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
+# testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test) 
+# testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
-
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+classes = ('galaxy', 'not-galaxy')
 
 # Model
 print('==> Building model..')
 # net = VGG('VGG19')
 net = resnet.ResNet18()
+net = net.float()
 # net = PreActResNet18()
 # net = GoogLeNet()
 # net = DenseNet121()
@@ -116,45 +118,45 @@ def train(epoch):
         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
-def test(epoch):
-    global best_acc
-    net.eval()
-    test_loss = 0
-    correct = 0
-    total = 0
-    # with torch.no_grad():
-    for batch_idx, (inputs, targets) in enumerate(testloader):
-        inputs, targets = Variable(inputs, volatile=True), Variable(targets, volatile=True)
-        if device == 'cuda':
-            inputs = inputs.cuda()
-            targets = targets.cuda()
+# def test(epoch): # TODO: uncomment when you've done TODO: split dataset into test/train
+#     global best_acc
+#     net.eval()
+#     test_loss = 0
+#     correct = 0
+#     total = 0
+#     # with torch.no_grad():
+#     for batch_idx, (inputs, targets) in enumerate(testloader):
+#         inputs, targets = Variable(inputs, volatile=True), Variable(targets, volatile=True)
+#         if device == 'cuda':
+#             inputs = inputs.cuda()
+#             targets = targets.cuda()
 
-        outputs = net(inputs)
-        loss = criterion(outputs, targets)
+#         outputs = net(inputs)
+#         loss = criterion(outputs, targets)
 
-        test_loss += loss.data[0]
-        _, predicted = outputs.max(1)
-        total += targets.size(0)
-        correct += predicted.eq(targets).sum().data[0]
+#         test_loss += loss.data[0]
+#         _, predicted = outputs.max(1)
+#         total += targets.size(0)
+#         correct += predicted.eq(targets).sum().data[0]
 
-        progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+#         progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+#             % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
-    # Save checkpoint.
-    acc = 100.*correct/total
-    if acc > best_acc:
-        print('Saving..')
-        state = {
-            'net': net.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        if not os.path.isdir('checkpoint'):
-            os.mkdir('checkpoint')
-        torch.save(state, './checkpoint/ckpt.t7')
-        best_acc = acc
+#     # Save checkpoint.
+#     acc = 100.*correct/total
+#     if acc > best_acc:
+#         print('Saving..')
+#         state = {
+#             'net': net.state_dict(),
+#             'acc': acc,
+#             'epoch': epoch,
+#         }
+#         if not os.path.isdir('checkpoint'):
+#             os.mkdir('checkpoint')
+#         torch.save(state, './checkpoint/ckpt.t7')
+#         best_acc = acc
 
 
 for epoch in range(start_epoch, start_epoch+200):
     train(epoch)
-    test(epoch)
+    # test(epoch)

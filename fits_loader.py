@@ -14,6 +14,7 @@ from astropy.utils.data import get_pkg_data_filename
 from astropy.io import fits
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
+import pandas as pd
 import numpy
 import os
 
@@ -21,7 +22,7 @@ default_dimens = 530
 
 
 class FitsHelper():
-    def __init__(self, root_dir, dimensions=default_dimens):
+    def __init__(self, root_dir, dimensions=default_dimens, galaxies=None):
         fitsFiles = os.listdir(root_dir)
         print("Reading fits files and storing dimensions for efficiency and logic... ")
         self.fitsFiles = fitsFiles 
@@ -29,9 +30,14 @@ class FitsHelper():
         dim_arr = []
         for x in fitsFiles: 
             data = fits.getdata(root_dir + "/" + x)
+            # print (data.shape) # TEST
             x = data.shape[0] - (data.shape[0] % dimensions)
             y = data.shape[1] - (data.shape[1] % dimensions)
             dim_arr.append((x,y))
+
+        self.galaxies = galaxies
+        if (self.galaxies):
+            self.galaxies = pd.read_csv(self.galaxies, delim_whitespace=True)
 
         self.fits_dims = dim_arr 
         self.dimensions = dimensions
@@ -39,6 +45,20 @@ class FitsHelper():
 
     def getFits(self):
         return self.fitsFiles 
+
+    def getGalaxies(self):
+        # print(self.galaxies.iloc[:, 0])
+        counter = 0 
+        for x in range(len(self.galaxies)):
+            for y in range(len(self.fitsFiles)):
+                if self.galaxies.iloc[x, 0] in self.fitsFiles[y]:
+                    counter += 1 
+                    break
+
+        print(counter) 
+            # print(galaxy_name)
+
+
 
     def getFitsDimensions(self):
         return self.fits_dims
@@ -53,6 +73,18 @@ class FitsHelper():
             total += (totalRows-1) * (self.fits_dims[x][0]/(self.dimensions/2))
         
         return (int(prevTotal), int(total))
+
+#############################################
+# TESTING 
+
+fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
+galax = '/home/greg/Desktop/LabelledData/NN project/2M_col_corr_comb_param_gal.dat'
+
+fitshelper = FitsHelper(fitsDir, galaxies = galax)
+fitshelper.getGalaxies()
+
+# TESTING 
+#############################################
 
 
 class FitsDataset(Dataset):

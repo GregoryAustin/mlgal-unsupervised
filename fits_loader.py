@@ -17,6 +17,9 @@ from torchvision import transforms, utils
 import pandas as pd
 import numpy
 import os
+from utils import progress_bar
+
+
 
 default_dimens = 276
 
@@ -84,6 +87,7 @@ class GalaxyDataset(Dataset):
                     if (self.fileCrop/data.shape[0] > 0.6 or self.fileCrop/data.shape[1] > 0.6): # get rid of big images , possibly forget about this???? s
                         if(data.shape[0] > 256 and data.shape[1] > 256):
                             # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
+                            progress_bar(count, len(self.galaxies))
                             count += 1
                             galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14])) # index 14 is the class in the galaxies file  
                     break

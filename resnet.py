@@ -100,23 +100,23 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = self.encoder(x)
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         out = F.relu(self.bn1(self.conv1(out)))
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         out = self.layer1(out)
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         out = self.layer2(out)
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         out = self.layer3(out)
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         out = self.layer4(out)
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         out = F.avg_pool2d(out, 4)
-        print("SIZE OF THIS", out.shape) # 64, 8, 8
+        # print("SIZE OF THIS", out.shape) # 64, 8, 8
         out = out.view(out.size(0), -1)
-        print("SIZE OF THIS", out.shape) # 4096
+        # print("SIZE OF THIS", out.shape) # 4096
         out = self.linear(out)
-        print("SIZE OF THIS", out.shape)
+        # print("SIZE OF THIS", out.shape)
         return out
 
 

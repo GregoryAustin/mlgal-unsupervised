@@ -108,13 +108,12 @@ def train(epoch):
     total = 0
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        # inputs, targets = inputs.to(device), targets.to(device)
         # data normalize 
-        # inputs = inputs.float()
-        for x in inputs:
-            scaler.partial_fit(x[0]) # 0 because there is only one dimension
 
         # normalizes the data 
+        for x in inputs:
+            scaler.partial_fit(x[0]) # 0 because there is only one dimension
+        
         for x in inputs:
             x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
 

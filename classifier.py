@@ -19,6 +19,9 @@ import resnet
 import fits_loader
 from utils import progress_bar
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.externals import joblib
+
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -58,7 +61,7 @@ print('==> Building model..')
 # net = VGG('VGG19')
 
 encoder = encoder.Encoder()
-encoder.load_state_dict(torch.load('SAVED_MODEL.pt'))
+encoder.load_state_dict(torch.load('saved_models/encoder.pt'))
 
 net = resnet.ResNet18(encoder)
 net = net.float()
@@ -94,6 +97,7 @@ criterion = nn.CrossEntropyLoss()
 if device == 'cuda':
     criterion.cuda()
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+scaler = joblib.load('saved_models/ae_scaler.pkl') # loading saved scaler for normalization !! 
 
 # Training
 def train(epoch):
@@ -102,15 +106,17 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
-    min_x = -142.305237
-    max_x = 41916.58203125
+
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         # inputs, targets = inputs.to(device), targets.to(device)
         # data normalize 
-        inputs = (inputs - min_x) / (max_x - min_x)
+        # inputs = inputs.float()
+        for x in inputs:
+            scaler.partial_fit(x[0]) # 0 because there is only one dimension
 
-
-
+        # normalizes the data 
+        for x in inputs:
+            x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
 
         inputs = Variable(inputs)
         targets = Variable(targets)

@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 import encoder
 from sklearn.preprocessing import StandardScaler
+from sklearn.externals import joblib
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 
@@ -99,7 +100,7 @@ class AE(nn.Module):
         # Latent space
         
         # Decoder
-        self.deconv1 = nn.ConvTranspose2d(3, 6, kernel_size=3, stride=1, padding=0, output_padding=0)
+        self.deconv1 = nn.ConvTranspose2d(3, 6, kernel_size=3, stride=1, padding=1, output_padding=0)
         self.deconv2 = nn.ConvTranspose2d(6, 12, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.deconv3 = nn.ConvTranspose2d(12, 6, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.deconv4 = nn.ConvTranspose2d(6, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
@@ -197,7 +198,8 @@ def train(epoch):
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
 
-    torch.save(model.encoder.state_dict(), 'SAVED_MODEL.pt')
+    torch.save(model.encoder.state_dict(), 'saved_models/encoder.pt') # saves the autoencoder
+    joblib.dump(scaler , 'saved_models/ae_scaler.pkl') # saves the normalized scaler
 
     # plt.plot(lossGraph)
     # plt.ylabel('loss')

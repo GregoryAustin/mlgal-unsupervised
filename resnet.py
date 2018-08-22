@@ -84,6 +84,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.softie = nn.Softmax(dim=1)
 
 
 # HERE IS THE OLD VERSION 
@@ -117,7 +118,7 @@ class ResNet(nn.Module):
         # print("SIZE OF THIS", out.shape) # 4096
         out = self.linear(out)
         # print("SIZE OF THIS", out.shape)
-        return out
+        return self.softie(out)
 
 
 def ResNet18(encoder):

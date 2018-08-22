@@ -7,6 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
+import encoder
 
 import torchvision
 import torchvision.transforms as transforms
@@ -55,8 +56,14 @@ classes = ('galaxy', 'not-galaxy')
 # Model
 print('==> Building model..')
 # net = VGG('VGG19')
-net = resnet.ResNet18()
+
+encoder = encoder.Encoder()
+encoder.load_state_dict(torch.load('SAVED_MODEL.pt'))
+
+net = resnet.ResNet18(encoder)
 net = net.float()
+
+
 # net = PreActResNet18()
 # net = GoogLeNet()
 # net = DenseNet121()
@@ -95,8 +102,16 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
+    min_x = -142.305237
+    max_x = 41916.58203125
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         # inputs, targets = inputs.to(device), targets.to(device)
+        # data normalize 
+        inputs = (inputs - min_x) / (max_x - min_x)
+
+
+
+
         inputs = Variable(inputs)
         targets = Variable(targets)
         if device == 'cuda':

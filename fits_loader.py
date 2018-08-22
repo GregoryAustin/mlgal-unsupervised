@@ -81,8 +81,7 @@ class GalaxyDataset(Dataset):
                 if self.galaxies.iloc[x, 0] in self.fits_files[y]: # index 0 is the ID of the file 
                     data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
 
-
-                    if (self.fileCrop/data.shape[0] > 0.6 or self.fileCrop/data.shape[1] > 0.6): # get rid of big images 
+                    if (self.fileCrop/data.shape[0] > 0.6 or self.fileCrop/data.shape[1] > 0.6): # get rid of big images , possibly forget about this???? s
                         if(data.shape[0] > 256 and data.shape[1] > 256):
                             # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
                             count += 1

@@ -11,6 +11,8 @@ from torchvision.utils import save_image
 import fits_loader
 import matplotlib.pyplot as plt
 
+import encoder
+
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 
@@ -88,21 +90,16 @@ train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datase
 #                          END DATA LOAD
 ##################################################################################
 
+
 class AE(nn.Module):
     def __init__(self):
         super(AE, self).__init__()
-
-        # Encoder     input size: 1,512,512 (262k)
-        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=2, padding=1) #8,256,256
-        self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1)#16,128,128
-        self.conv3 = nn.Conv2d(16, 8, kernel_size=3, stride=2, padding=1)#8,64,64 
-        self.conv4 = nn.Conv2d(8, 4, kernel_size=3, stride=2, padding=1)#4,32,32 
-
+        self.encoder = encoder.Encoder()
         
         # Latent space
         
         # Decoder
-        self.deconv1 = nn.ConvTranspose2d(4, 8, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv1 = nn.ConvTranspose2d(3, 8, kernel_size=3, stride=1, padding=0, output_padding=0)
         self.deconv2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.deconv3 = nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.deconv4 = nn.ConvTranspose2d(8, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
@@ -110,15 +107,8 @@ class AE(nn.Module):
         self.relu = nn.ReLU()
         
     def encode(self, x):
-        out = self.relu(self.conv1(x))
-        # print("how big is this 1 ",out.size()) # 8, 64, 64
-        out = self.relu(self.conv2(out))
-        # print("how big is this 2 ",out.size()) # 16, 128, 128 
-        out = self.relu(self.conv3(out))
-        # print("how big is this 2 ",out.size())
-        out = self.conv4(out)
-        # print("how big is this 3 ",out.size())
-        return out
+        
+        return self.encoder(x)
 
     
     def decode(self, z):
@@ -143,7 +133,7 @@ if args.cuda:
 MSE = nn.MSELoss(reduce=True)
 MSE.cuda()
 learning_rate = 1e-3
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # weight_decay=5e-4
 
 
 def train(epoch):
@@ -220,6 +210,8 @@ def train(epoch):
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
+
+    torch.save(model.encoder.state_dict(), 'SAVED_MODEL.pt')
 
     # print("MAX: " + str(max(maxs)))
     # print("MIN: ", min(mins))

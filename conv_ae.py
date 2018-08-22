@@ -12,7 +12,7 @@ import fits_loader
 import matplotlib.pyplot as plt
 
 import encoder
-
+from sklearn.preprocessing import StandardScaler
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 
@@ -57,7 +57,7 @@ fitsDir = '/home/greg/Desktop/Galaxyfits'
 
 
 data_transform = transforms.Compose([
-        fits_loader.RandomCrop(512)
+        fits_loader.RandomCrop(256)
     ])
 
 
@@ -99,10 +99,10 @@ class AE(nn.Module):
         # Latent space
         
         # Decoder
-        self.deconv1 = nn.ConvTranspose2d(3, 8, kernel_size=3, stride=1, padding=0, output_padding=0)
-        self.deconv2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.deconv3 = nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.deconv4 = nn.ConvTranspose2d(8, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv1 = nn.ConvTranspose2d(3, 6, kernel_size=3, stride=1, padding=0, output_padding=0)
+        self.deconv2 = nn.ConvTranspose2d(6, 12, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv3 = nn.ConvTranspose2d(12, 6, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv4 = nn.ConvTranspose2d(6, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
         
         self.relu = nn.ReLU()
         
@@ -134,37 +134,23 @@ MSE = nn.MSELoss(reduce=True)
 MSE.cuda()
 learning_rate = 1e-3
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # weight_decay=5e-4
-
+scaler = StandardScaler()
 
 def train(epoch):
     model.train()
     train_loss = 0
 
     # lossGraph = []
-    # # # for batch_idx, (data, _) in enumerate(train_loader):
-    # maxs = []
-    # mins = []
-    # means = []
-
-    min_x = -142.305237
-    max_x = 41916.58203125
-
     counter = 0 
 
     for batch_idx, data in enumerate(train_loader):
         data = data.float()
-
-        # normalize stuff 
-        # data = (data-torch.mean(data))/torch.std(data) OLD
-        # data = torch.sqrt(data + 2453) OLD 
-
-        # maxs.append(torch.max(data)) FOR CHECKING MIN MAX MEAN
-        # means.append(torch.mean(data))
-        # mins.append(torch.min(data))
-        # normalize stuff
+        for x in data:
+            scaler.partial_fit(x[0]) # 0 because there is only one dimension
 
         # normalizes the data 
-        data = (data - min_x) / (max_x - min_x)
+        for x in data:
+            x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
         
 
         data = Variable(data)
@@ -212,10 +198,6 @@ def train(epoch):
           epoch, train_loss / len(train_loader.dataset)))
 
     torch.save(model.encoder.state_dict(), 'SAVED_MODEL.pt')
-
-    # print("MAX: " + str(max(maxs)))
-    # print("MIN: ", min(mins))
-    # print("MEANS: ", sum(means)/len(means))
 
     # plt.plot(lossGraph)
     # plt.ylabel('loss')

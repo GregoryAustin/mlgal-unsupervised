@@ -18,7 +18,7 @@ import pandas as pd
 import numpy
 import os
 
-default_dimens = 530
+default_dimens = 276
 
 
 class FitsHelper():

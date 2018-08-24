@@ -98,6 +98,10 @@ class GalaxyDataset(Dataset):
         return len(self.galaxies)
 
     def __getitem__(self, idx):
+        target = 0
+        if (6 <= self.galaxies[idx][2] <= 9):
+            target = 1 
+
         # idx is index to a single galaxy fits image
         img = self.root_dir + '/' + self.galaxies[idx][0] 
         img = fits.getdata(img, ext=0) 
@@ -106,13 +110,20 @@ class GalaxyDataset(Dataset):
         # TODO POLISH: make this better AKA less magic numbers 
 
         
-        if (0.6 < self.fileCrop/self.galaxies[idx][1][0] < 1. or 0.6 < self.fileCrop/self.galaxies[idx][1][1] < 1.): 
-            d = 350
-            x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
-            y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
-            img = img[x1:x1+d,y1:y1+d]
-
         
+        d = 110
+        x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
+        y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
+        img = img[x1:x1+d,y1:y1+d]
+        
+        # if (target == 0):
+        #     tmp = "snapshots/galaxies/" + str(idx) + ".png"
+        #     plt.imsave(tmp, img, cmap='gray')
+
+        # if (target == 1):
+        #     tmp = "snapshots/nongalax/" + str(idx) + ".png"
+        #     plt.imsave(tmp, img, cmap='gray')
+
         # print("Before crop: ", img.shape)
         if self.transform: # DONE: random crop images 256 * 256
             img = self.transform(img)
@@ -125,10 +136,7 @@ class GalaxyDataset(Dataset):
 
         sample = torch.from_numpy(img)
         
-        target = 0
-        if (6 <= self.galaxies[idx][2] <= 9):
-            target = 1 
-
+        
 
         # DONE: return a tuple (input, target) 
             # target is binary for now: galaxy or not galaxy 

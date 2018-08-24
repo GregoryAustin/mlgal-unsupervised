@@ -22,9 +22,11 @@ from utils import progress_bar
 from sklearn.preprocessing import StandardScaler
 from sklearn.externals import joblib
 
+import trash
+
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 args = parser.parse_args()
 
@@ -45,11 +47,11 @@ galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
 # TODO: normalize 
 
 transform_train = transforms.Compose([
-    fits_loader.RandomCrop(256)
+    fits_loader.RandomCrop(96)
 ])
 
 trainset = fits_loader.GalaxyDataset(fitsDir, galax, transform_train) # TODO: split the train set and test set 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=2)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=2)
 
 # testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test) 
 # testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
@@ -63,9 +65,10 @@ print('==> Building model..')
 encoder = encoder.Encoder()
 encoder.load_state_dict(torch.load('saved_models/encoder.pt'))
 
-net = resnet.ResNet18(encoder)
+# net = resnet.ResNet34(encoder)
+# net = net.float()
+net = trash.DankNet()
 net = net.float()
-
 
 # net = PreActResNet18()
 # net = GoogLeNet()
@@ -96,8 +99,8 @@ if args.resume:
 criterion = nn.CrossEntropyLoss()
 if device == 'cuda':
     criterion.cuda()
-optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-scaler = joblib.load('saved_models/ae_scaler.pkl') # loading saved scaler for normalization !! 
+optimizer = optim.Adam(net.parameters(), lr=args.lr) #momentum=0.9, weight_decay=5e-4)
+scaler = StandardScaler() #joblib.load('saved_models/ae_scaler.pkl') # loading saved scaler for normalization !! 
 
 # Training
 def train(epoch):
@@ -125,6 +128,7 @@ def train(epoch):
 
         optimizer.zero_grad()
         outputs = net(inputs)
+
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()

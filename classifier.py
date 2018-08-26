@@ -22,7 +22,7 @@ from utils import progress_bar
 from sklearn.preprocessing import StandardScaler
 from sklearn.externals import joblib
 
-import trash
+import DankNet
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -47,11 +47,12 @@ galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
 # TODO: normalize 
 
 transform_train = transforms.Compose([
-    fits_loader.RandomCrop(96)
+    fits_loader.RandomCrop(96),
+
 ])
 
 trainset = fits_loader.GalaxyDataset(fitsDir, galax, transform_train) # TODO: split the train set and test set 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=2)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=False, num_workers=2)
 
 # testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test) 
 # testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
@@ -67,7 +68,7 @@ encoder.load_state_dict(torch.load('saved_models/encoder.pt'))
 
 # net = resnet.ResNet34(encoder)
 # net = net.float()
-net = trash.DankNet()
+net = DankNet.DankNet()
 net = net.float()
 
 # net = PreActResNet18()

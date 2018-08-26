@@ -18,6 +18,7 @@ import pandas as pd
 import numpy
 import os
 from utils import progress_bar
+import random
 
 
 
@@ -79,7 +80,7 @@ class GalaxyDataset(Dataset):
 
         # THE PURPOSE OF THIS IS TO GET RID OF BIGGER IMAGES 
         
-        for x in range(len(self.galaxies)):
+        for x in range(5):
             for y in range(len(self.fits_files)):
                 if self.galaxies.iloc[x, 0] in self.fits_files[y]: # index 0 is the ID of the file 
                     data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
@@ -124,18 +125,27 @@ class GalaxyDataset(Dataset):
         #     tmp = "snapshots/nongalax/" + str(idx) + ".png"
         #     plt.imsave(tmp, img, cmap='gray')
 
-        # print("Before crop: ", img.shape)
         if self.transform: # DONE: random crop images 256 * 256
             img = self.transform(img)
         
-        # print("After crop: ", img.shape)
-
         # Converting to one channel tensor 
         img = img[..., numpy.newaxis]
         img = img.transpose(2, 0, 1)
 
+        # RANDOM VERTICAL FLIP 
+        if random() < 0.5:
+            img[0] = numpy.flip(img[0], 1)
+
+        # RANDOM HORIZONTAL FLIP
+        if random() < 0.5:
+            img[0] = numpy.flip(img[0], 0)
+
+        # RANDOM ROTATE 
+        n = random.choice([0, 1, 2, 3])
+        img[0] = numpy.rot90(img[0], n)
+
         sample = torch.from_numpy(img)
-        
+        # RANDOM HORIZONTAL FLIP 
         
 
         # DONE: return a tuple (input, target) 
@@ -151,7 +161,7 @@ class FitsDataset(Dataset):
 
     # DONE: would prefer dimensions to be 530 and then randomcrop! 
     # TODO: add noise to images 
-    # TODO: add random rotate
+    # DONE: add random rotate
     # DONE: normalize dataset
 
     # DONE: CNN 
@@ -246,8 +256,8 @@ class GaussianNoise(nn.Module):
             return x
 
 # TODO: RANDOM GAUSSIAN NOISE 
-# TODO: RANDOM HORIZONTAL FLIP 
-# TODO: RANDOM VERTICAL FLIP 
+# DONE: RANDOM HORIZONTAL FLIP 
+# DONE: RANDOM VERTICAL FLIP 
 
 
 class RandomCrop(object):

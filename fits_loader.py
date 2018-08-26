@@ -80,7 +80,7 @@ class GalaxyDataset(Dataset):
 
         # THE PURPOSE OF THIS IS TO GET RID OF BIGGER IMAGES 
         
-        for x in range(5):
+        for x in range(len(self.galaxies)):
             for y in range(len(self.fits_files)):
                 if self.galaxies.iloc[x, 0] in self.fits_files[y]: # index 0 is the ID of the file 
                     data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
@@ -133,11 +133,11 @@ class GalaxyDataset(Dataset):
         img = img.transpose(2, 0, 1)
 
         # RANDOM VERTICAL FLIP 
-        if random() < 0.5:
+        if random.random() < 0.5:
             img[0] = numpy.flip(img[0], 1)
 
         # RANDOM HORIZONTAL FLIP
-        if random() < 0.5:
+        if random.random() < 0.5:
             img[0] = numpy.flip(img[0], 0)
 
         # RANDOM ROTATE 
@@ -240,24 +240,6 @@ class FitsDataset(Dataset):
         sample = torch.from_numpy(crop_image)
         
         return sample
-
-
-# 0.1 = 10% 
-class GaussianNoise(nn.Module):
-    def __init__(self, stddev):
-        super().__init__()
-        self.stddev = stddev
-
-    def forward(self, x):
-        if self.training:
-            noise = x.data.new(x.size()).normal_(0, self.stddev).cuda()
-            return x + noise 
-        else:
-            return x
-
-# TODO: RANDOM GAUSSIAN NOISE 
-# DONE: RANDOM HORIZONTAL FLIP 
-# DONE: RANDOM VERTICAL FLIP 
 
 
 class RandomCrop(object):

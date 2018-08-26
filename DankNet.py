@@ -7,6 +7,8 @@ class DankNet(nn.Module):
     def __init__(self):
         super(DankNet, self).__init__()
         # input is 1 * 96 * 96
+
+        self.gauss = GaussianNoise(0.1)
         self.down1 = down(1, 32)
         self.same1 = same(32,32)
         self.down2 = down(32, 64)
@@ -23,7 +25,8 @@ class DankNet(nn.Module):
         self.soft = nn.Softmax(dim=1)
 
     def forward(self, x):
-        out = self.down1(x)
+        out = self.gauss(x)
+        out = self.down1(out)
         out = self.same1(out)
         # print(out.size())
         out = self.down2(out)
@@ -56,6 +59,17 @@ class DankNet(nn.Module):
         out = self.soft(out)
 
         return out
+
+class GaussianNoise(nn.Module):
+    def __init__(self, stddev):
+        super().__init__()
+        self.stddev = stddev
+
+    def forward(self, din):
+        if self.training:
+            return din + torch.autograd.Variable(torch.randn(din.size()).cuda() * self.stddev)
+        return din
+
 
 def test():
     net = DankNet()

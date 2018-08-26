@@ -119,7 +119,7 @@ def train(epoch):
             scaler.partial_fit(x[0]) # 0 because there is only one dimension
         
         for x in inputs:
-            x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
+            x[0] = torch.from_numpy(scaler.transform(x[0])) 
 
         inputs = Variable(inputs)
         targets = Variable(targets)

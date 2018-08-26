@@ -98,6 +98,9 @@ if args.resume:
     start_epoch = checkpoint['epoch']
 
 criterion = nn.CrossEntropyLoss()
+# criterion = nn.SoftMarginLoss()
+# criterion = nn.MarginRankingLoss()
+# criterion = nn.NLLLoss()
 if device == 'cuda':
     criterion.cuda()
 optimizer = optim.Adam(net.parameters(), lr=args.lr) #momentum=0.9, weight_decay=5e-4)

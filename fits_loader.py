@@ -71,12 +71,6 @@ class GalaxyDataset(Dataset):
         self.transform = transform
         count = 0
 
-        self.fileCrop = 384 # NO FILES ARE ACTUALLY CROPPED TO 384, this has become more of a img size guide 
-
-        # TODO: POLISH:
-            # TODO: discripency between galaxy list file and total galaxies returned (including not included big files)
-            # TODO: check size of galaxies in bigger images 
-
         galaxs = []
         blacklist = os.listdir('snapshots/galaxies/blacklist')
         galaxies = 0
@@ -103,7 +97,7 @@ class GalaxyDataset(Dataset):
         
         print("Galaxies:", galaxies)
         print("Nongalax:", nongalax)
-        print("Percentgalax:", galaxies/count)
+        print("Percentgalax:", galaxies/count*100)
         self.galaxies = galaxs 
 
     def __len__(self):
@@ -118,11 +112,6 @@ class GalaxyDataset(Dataset):
         img = self.root_dir + '/' + self.galaxies[idx][0] 
         img = fits.getdata(img, ext=0) 
 
-        # DONE: crop normal images to 350 * 350 # DONE ON THE FLY AND NOT WITH INIT!!! 
-        # TODO POLISH: make this better AKA less magic numbers 
-
-        
-        
         d = 110
         x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
         y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
@@ -166,12 +155,6 @@ class FitsDataset(Dataset):
     # be able to know all files but also 
     # be able to index without reading every file in
 
-    # DONE: would prefer dimensions to be 530 and then randomcrop! 
-    # TODO: add noise to images 
-    # DONE: add random rotate
-    # DONE: normalize dataset
-
-    # DONE: CNN 
     def __init__(self, root_dir, fitshelper, dimensions=default_dimens, transform=None):
         
         self.fits_files = fitshelper.getFits() # NEW

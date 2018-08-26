@@ -47,8 +47,7 @@ galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
 # TODO: normalize 
 
 transform_train = transforms.Compose([
-    fits_loader.RandomCrop(96),
-
+    fits_loader.RandomCrop(96)
 ])
 
 trainset = fits_loader.GalaxyDataset(fitsDir, galax, transform_train) # TODO: split the train set and test set 
@@ -56,6 +55,31 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, 
 
 # testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test) 
 # testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+
+
+galaxhelper = fits_loader.GalaxyHelper(root_dir=fitsDir) # TODO: galaxy directory
+galaxy2loader = fits_loader.Galaxy2Dataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform) # TODO: galaxy directory etc
+
+
+# this avoids loading multiple FITS files into memory at once
+# and causing the program to MemoryError 
+
+print("Reading data...")
+datasets = []
+datasets.append(trainset)
+for x in range(len(galaxhelper.getFits())):
+    idxs = galaxhelper.getFileIndexes(x)
+    dtaset = []
+    for z in range(len(range(idxs[0], idxs[1]))):
+        dtaset.append(galaxy2loader[z])
+
+    datasets.append(dtaset)
+print("Done. ")
+
+train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datasets), batch_size=args.batch_size, shuffle=True, **kwargs)
+
+
+
 
 classes = ('galaxy', 'not-galaxy')
 

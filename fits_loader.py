@@ -60,6 +60,28 @@ class FitsHelper():
         
         return (int(prevTotal), int(total))
 
+class GalaxyHelper(): # TODO
+    def __init__(self, galax_dir, nongalax_dir, fits_dir):
+
+    def getFits(self):
+        return self.fitsFiles
+
+    def getFileIndexes(self, idx):
+        return idxs
+
+    def getLength(self):
+        return 0
+
+    def getCoords(self, idx):
+
+
+class Galaxy2Dataset(Dataset): # TODO 
+    def __init__(self, root_dir, galaxhelper):
+
+    def __len__(self):
+
+    def __getitem__(self,idx )
+
 class GalaxyDataset(Dataset):
     # TODO: SO MUCH I/O going on, maybe do what FitsDataset does and workaround
     def __init__(self, root_dir, galaxies, transform=None):

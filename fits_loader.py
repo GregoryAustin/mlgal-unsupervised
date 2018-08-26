@@ -66,6 +66,7 @@ class GalaxyDataset(Dataset):
                
         self.galaxies = pd.read_csv(galaxies, delim_whitespace=True)
         self.fits_files = os.listdir(root_dir)
+
         self.root_dir = root_dir
         self.transform = transform
         count = 0
@@ -77,22 +78,32 @@ class GalaxyDataset(Dataset):
             # TODO: check size of galaxies in bigger images 
 
         galaxs = []
+        blacklist = os.listdir('snapshots/galaxies/blacklist')
+        galaxies = 0
+        nongalax = 0
 
         # THE PURPOSE OF THIS IS TO GET RID OF BIGGER IMAGES 
         
         for x in range(len(self.galaxies)):
             for y in range(len(self.fits_files)):
-                if self.galaxies.iloc[x, 0] in self.fits_files[y]: # index 0 is the ID of the file 
+                if self.galaxies.iloc[x, 0] in self.fits_files[y] and self.fits_files[y] not in blacklist: # index 0 is the ID of the file 
                     data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
 
-                    if (self.fileCrop/data.shape[0] > 0.6 or self.fileCrop/data.shape[1] > 0.6): # get rid of big images , possibly forget about this???? s
-                        if(data.shape[0] > 256 and data.shape[1] > 256):
-                            # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
-                            progress_bar(count, len(self.galaxies))
-                            count += 1
-                            galaxs.append((self.fits_files[y], data.shape, self.galaxies.iloc[x, 14])) # index 14 is the class in the galaxies file  
+                    if(self.galaxies.iloc[x,15] == 0):
+                        # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
+                        progress_bar(count, len(self.galaxies))
+                        count += 1
+                        targ = self.galaxies.iloc[x, 14]
+                        galaxs.append((self.fits_files[y], data.shape, targ)) # index 14 is the class in the galaxies file  
+                        if 0 < targ < 5:
+                            galaxies += 1
+                        else:
+                            nongalax += 1
                     break
         
+        print("Galaxies:", galaxies)
+        print("Nongalax:", nongalax)
+        print("Percentgalax:", galaxies/count)
         self.galaxies = galaxs 
 
     def __len__(self):
@@ -116,14 +127,10 @@ class GalaxyDataset(Dataset):
         x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
         y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
         img = img[x1:x1+d,y1:y1+d]
-        
-        # if (target == 0):
-        #     tmp = "snapshots/galaxies/" + str(idx) + ".png"
-        #     plt.imsave(tmp, img, cmap='gray')
 
-        # if (target == 1):
-        #     tmp = "snapshots/nongalax/" + str(idx) + ".png"
-        #     plt.imsave(tmp, img, cmap='gray')
+        if (target == 1):
+            tmp = "snapshots/nongalax/" + str(self.galaxies[idx][0]) + ".png"
+            plt.imsave(tmp, img, cmap='gray')
 
         if self.transform: # DONE: random crop images 256 * 256
             img = self.transform(img)

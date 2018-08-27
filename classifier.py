@@ -37,14 +37,18 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 
 
-# TODO: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
+# DONE: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
 # Data
 print('==> Preparing data..')
 
 fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
 galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
 
-# TODO: normalize 
+galaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/galaxies'
+nongalaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/nongalaxies'
+fitsdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/fits'
+
+# DONE: normalize 
 
 transform_train = transforms.Compose([
     fits_loader.RandomCrop(96)
@@ -57,8 +61,8 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, 
 # testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
 
-galaxhelper = fits_loader.GalaxyHelper(root_dir=fitsDir) # TODO: galaxy directory
-galaxy2loader = fits_loader.Galaxy2Dataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform) # TODO: galaxy directory etc
+galaxhelper = fits_loader.GalaxyHelper(root_dir=fitsDir) # DONE: galaxy directory
+galaxy2loader = fits_loader.Galaxy2Dataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform) # DONE: galaxy directory etc
 
 
 # this avoids loading multiple FITS files into memory at once

@@ -19,11 +19,9 @@ import numpy
 import os
 from utils import progress_bar
 import random
-
-
+from regions import read_ds9, write_ds9
 
 default_dimens = 276
-
 
 class FitsHelper():
     def __init__(self, root_dir, dimensions=default_dimens):
@@ -61,26 +59,146 @@ class FitsHelper():
         return (int(prevTotal), int(total))
 
 class GalaxyHelper(): # TODO
-    def __init__(self, galax_dir, nongalax_dir, fits_dir):
+    def __init__(self, fits_dir, galax_dir, nongalax_dir):
+
+        self.galaxy_files = os.listdir(galax_dir)
+        self.nongalax_files = os.listdir(nongalax_dir)
+        self.fitsfiles = os.listdir(fitsdir)
+
+        self.galax_dir = galax_dir
+        self.fits_dir = fits_dir
+        self.nongalax_dir = nongalax_dir
+
+        self.nongalax_files = sorted(self.nongalax_files)
+        self.galaxy_files = sorted(self.galaxy_files)
+        self.fitsfiles = sorted(self.fitsfiles)
+
+        # INDEX GOES GALAXIES THEN STARS FOR EACH FILE 
+        self.pointCounts = []
+
+        
+        totalCount = 0 
+        for x in range(len(self.fitsfiles)):
+            # print(self.nongalax_files[x])
+            # print(self.galaxy_files[x])
+            galaxies = read_ds9(galax_dir + '/' + self.galaxy_files[x])      
+            nongalaxies = read_ds9(nongalax_dir + '/' + self.nongalax_files[x])      
+
+
+            self.pointCounts.append((totalCount, totalCount + len(galaxies), totalCount + len(galaxies) + len(nongalaxies))) # tuple with (0, galaxy length, totalLength)
+            totalCount += len(galaxies) + len(nongalaxies)
+            # print(totalCount)
+        self.totalCount = totalCount
+        print("Total objects", self.totalCount)
+
+    def getDir(self):
+        return self.fits_dir
 
     def getFits(self):
-        return self.fitsFiles
+        return self.fitsfiles
 
-    def getFileIndexes(self, idx):
-        return idxs
+    def getFileIndexes(self, idx): # parameter is file number
+        return self.pointCounts[x]
 
     def getLength(self):
-        return 0
+        return self.totalCount
 
-    def getCoords(self, idx):
+    def getFileAndIdx(self, idx): # input is index and it returns file number and index
+        count = 0
+        totalCount = 0
+        isGalaxy = False
 
+        for x in range(len(self.pointCounts)):
+            if (self.pointCounts[x][0] <= idx < self.pointCounts[x][2]):
+                totalCount = self.pointCounts[x][0]
+                break
+            count += 1
 
-class Galaxy2Dataset(Dataset): # TODO 
-    def __init__(self, root_dir, galaxhelper):
+        return (count, idx-totalCount) # returns file number and if it's galaxy or nongalaxy file
+
+    def getCoordAndTarget(self, fileIdx, idx):
+        objects = None
+        target = 0
+        if(idx < self.pointCounts[fileIdx][1]):
+            objects = read_ds9(self.galax_dir + '/' + self.galaxy_files[fileIdx])      
+        else:
+            objects = read_ds9(self.nongalax_dir + '/' + self.nongalax_files[x])
+            target = 1
+
+        return (objects[idx], target)
+
+class GalaxyDataset2(Dataset): # TODO 
+    def __init__(self, galaxhelper, transform=None):
+        self.galaxyHelp = galaxhelper
+        self.transform = transform
+        self.dimensions = 110
+
+        self.curr_fits = 0
+        self.data = fits.getdata(self.galaxyHelp.getDir() + "/" + self.galaxyHelp.getFits()[0])
+
 
     def __len__(self):
+        self.galaxyHelp.getLength()
 
-    def __getitem__(self,idx )
+    def __getitem__(self, idx):
+        fileNo, fidx = self.galaxyHelp.getFileAndIdx(idx)
+        coord, target = self.galaxyHelp.getCoordAndTarget(fileNo, fidx)
+        # coord.center.x 
+        # coord.center.y
+
+        x = int(round(coord.center.x)) - int(self.dimensions/2) 
+        y = int(round(coord.center.y)) - int(self.dimensions/2) 
+
+        if (self.curr_fits == fileNo):
+            tmpFile = self.data
+        else:
+            tmpFile = self.galaxyHelp.getDir() + '/' + self.galaxyHelp.getFits()[fileNo]
+            tmpFile = fits.getdata(tmpFile, ext=0) 
+            self.curr_fits = fileNo
+            self.data = tmpFile 
+
+        crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
+
+        if self.transform:
+            crop_image = self.transform(crop_image)
+
+
+        # Converting to one channel tensor 
+        crop_image = crop_image[..., numpy.newaxis]
+        crop_image = crop_image.transpose(2, 0, 1)
+
+        sample = torch.from_numpy(crop_image)
+
+        savedir = 'newg/gal'
+        if (target == 0):
+            plt.imsave(savedir, sample, cmap='gray')
+
+        return (crop_image.float(), target)
+
+
+######################
+# TEST
+######################
+
+galaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/galaxies'
+nongalaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/nongalaxies'
+fitsdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/fits'
+transform_train = transforms.Compose([
+    fits_loader.RandomCrop(96)
+])
+
+
+
+galaxhelper = GalaxyHelper(fits_dir=fitsdir, galax_dir=galaxdir, nongalax_dir=nongalaxdir) 
+trainset = GalaxyDataset2(galaxhelper, transforms) 
+
+for x in trainset:
+    print('Shape: ' + str(x[0].shape) + ' type: ' + str(target))
+
+######################
+# TEST
+######################
+
 
 class GalaxyDataset(Dataset):
     # TODO: SO MUCH I/O going on, maybe do what FitsDataset does and workaround

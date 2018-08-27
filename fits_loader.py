@@ -63,7 +63,7 @@ class GalaxyHelper(): # TODO
 
         self.galaxy_files = os.listdir(galax_dir)
         self.nongalax_files = os.listdir(nongalax_dir)
-        self.fitsfiles = os.listdir(fitsdir)
+        self.fitsfiles = os.listdir(fits_dir)
 
         self.galax_dir = galax_dir
         self.fits_dir = fits_dir
@@ -98,7 +98,7 @@ class GalaxyHelper(): # TODO
         return self.fitsfiles
 
     def getFileIndexes(self, idx): # parameter is file number
-        return self.pointCounts[x]
+        return self.pointCounts[idx]
 
     def getLength(self):
         return self.totalCount
@@ -132,13 +132,15 @@ class GalaxyDataset2(Dataset): # TODO
         self.galaxyHelp = galaxhelper
         self.transform = transform
         self.dimensions = 110
+        self.tmpGalaxies = 0
+
 
         self.curr_fits = 0
         self.data = fits.getdata(self.galaxyHelp.getDir() + "/" + self.galaxyHelp.getFits()[0])
 
 
     def __len__(self):
-        self.galaxyHelp.getLength()
+        return self.galaxyHelp.getLength()
 
     def __getitem__(self, idx):
         fileNo, fidx = self.galaxyHelp.getFileAndIdx(idx)
@@ -156,6 +158,8 @@ class GalaxyDataset2(Dataset): # TODO
             tmpFile = fits.getdata(tmpFile, ext=0) 
             self.curr_fits = fileNo
             self.data = tmpFile 
+            print("Moving onto file ", self.galaxyHelp.getsFits()[fileNo])
+            print("Galaxies so far..", self.tmpGalaxies)
 
         crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
 
@@ -169,35 +173,17 @@ class GalaxyDataset2(Dataset): # TODO
 
         sample = torch.from_numpy(crop_image)
 
-        savedir = 'newg/gal'
-        if (target == 0):
-            plt.imsave(savedir, sample, cmap='gray')
+        # savedir = 'snapshots/newg/gal/'
+        # if (target == 0):
+        #     plt.imsave(savedir + str(idx) + '.png', sample[0], cmap='gray')
 
-        return (crop_image.float(), target)
+        if (target == 0): 
+            self.tmpGalaxies += 1
 
-
-######################
-# TEST
-######################
-
-galaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/galaxies'
-nongalaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/nongalaxies'
-fitsdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/fits'
-transform_train = transforms.Compose([
-    fits_loader.RandomCrop(96)
-])
+        return (sample.float(), target)
 
 
 
-galaxhelper = GalaxyHelper(fits_dir=fitsdir, galax_dir=galaxdir, nongalax_dir=nongalaxdir) 
-trainset = GalaxyDataset2(galaxhelper, transforms) 
-
-for x in trainset:
-    print('Shape: ' + str(x[0].shape) + ' type: ' + str(target))
-
-######################
-# TEST
-######################
 
 
 class GalaxyDataset(Dataset):
@@ -404,3 +390,5 @@ class RandomCrop(object):
         image = image[top: top + new_h, left: left + new_w]
         
         return image
+
+

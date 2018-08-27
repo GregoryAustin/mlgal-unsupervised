@@ -62,7 +62,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, 
 
 
 galaxhelper = fits_loader.GalaxyHelper(root_dir=fitsDir) # DONE: galaxy directory
-galaxy2loader = fits_loader.Galaxy2Dataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform) # DONE: galaxy directory etc
+galaxy2loader = fits_loader.GalaxyDataset2(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform) # DONE: galaxy directory etc
 
 
 # this avoids loading multiple FITS files into memory at once

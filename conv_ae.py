@@ -76,7 +76,7 @@ datasets = []
 for x in range(len(fitshelper.getFits())):
     idxs = fitshelper.getFitsFileSlice(x)
     dtaset = []
-    for z in range(len(range(idxs[0], idxs[1]))):
+    for z in range(len(range(idxs[0], idxs[1]))): # TODO: fix this 
         dtaset.append(fits_dataset[z])
 
     datasets.append(dtaset)

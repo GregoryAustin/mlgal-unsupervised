@@ -75,18 +75,28 @@ class GalaxyHelper(): # TODO
 
         # INDEX GOES GALAXIES THEN STARS FOR EACH FILE 
         self.pointCounts = []
-
+        self.galaxies = []
         
         totalCount = 0 
         for x in range(len(self.fitsfiles)):
             # print(self.nongalax_files[x])
             # print(self.galaxy_files[x])
+
             galaxies = read_ds9(galax_dir + '/' + self.galaxy_files[x])      
-            nongalaxies = read_ds9(nongalax_dir + '/' + self.nongalax_files[x])      
+            
+            nongalaxies = read_ds9(nongalax_dir + '/' + self.nongalax_files[x])
+            numGalax = len(galaxies)
+
+            for x in nongalaxies:
+                galaxies.append(x)
+            # print(len(galaxies))
+
+            self.galaxies.append(galaxies)
 
 
-            self.pointCounts.append((totalCount, totalCount + len(galaxies), totalCount + len(galaxies) + len(nongalaxies))) # tuple with (0, galaxy length, totalLength)
-            totalCount += len(galaxies) + len(nongalaxies)
+            self.pointCounts.append((totalCount, totalCount + numGalax, totalCount + len(galaxies))) # tuple with (0, galaxy length, totalLength)
+
+            totalCount += len(galaxies)
             # print(totalCount)
         self.totalCount = totalCount
         print("Total objects", self.totalCount)
@@ -117,14 +127,15 @@ class GalaxyHelper(): # TODO
         return (count, idx-totalCount) # returns file number and if it's galaxy or nongalaxy file
 
     def getCoordAndTarget(self, fileIdx, idx):
-        objects = None
         target = 0
-        if(idx < self.pointCounts[fileIdx][1]):
-            objects = read_ds9(self.galax_dir + '/' + self.galaxy_files[fileIdx])      
-        else:
-            objects = read_ds9(self.nongalax_dir + '/' + self.nongalax_files[x])
+        objects = self.galaxies[fileIdx]
+        # print(self.pointCounts[fileIdx][1])
+        if(idx >= self.pointCounts[fileIdx][1]-self.pointCounts[fileIdx][0]):
             target = 1
-
+            
+        # print(idx)
+        # print(self.pointCounts[fileIdx][1])
+        # print("length: ", len(objects))
         return (objects[idx], target)
 
 class GalaxyDataset2(Dataset): # TODO 
@@ -158,7 +169,7 @@ class GalaxyDataset2(Dataset): # TODO
             tmpFile = fits.getdata(tmpFile, ext=0) 
             self.curr_fits = fileNo
             self.data = tmpFile 
-            print("Moving onto file ", self.galaxyHelp.getsFits()[fileNo])
+            print("Moving onto file ", self.galaxyHelp.getFits()[fileNo])
             print("Galaxies so far..", self.tmpGalaxies)
 
         crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]

@@ -11,6 +11,9 @@ from torchvision.utils import save_image
 import fits_loader
 import matplotlib.pyplot as plt
 
+import torchvision
+import torchvision.transforms as transforms
+
 import encoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.externals import joblib
@@ -50,39 +53,60 @@ kwargs = {'num_workers': 2} if args.cuda else {}
 ##################################################################################
 #                           DATA GETS LOADED HERE
 ##################################################################################
+print('==> Preparing data..')
 
-fitsDir = '/media/greg/Main Disk 2/UNLABELED DATA/bulge'
+transform_train = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261)),
+])
 
-fitsDir = '/home/greg/Desktop/Galaxyfits'
+transform_test = transforms.Compose([
+    transforms.ToTensor(),
+    # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261)),
+])
+
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+train_loader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
+
+testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
 
 
-data_transform = transforms.Compose([
-        fits_loader.RandomCrop(256)
-    ])
+# fitsDir = '/media/greg/Main Disk 2/UNLABELED DATA/bulge'
+
+# fitsDir = '/home/greg/Desktop/Galaxyfits'
 
 
-# DONE: ADD TRANSFORMS
 
-fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
-fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
+# data_transform = transforms.Compose([
+#         fits_loader.RandomCrop(256)
+#     ])
 
 
-# this avoids loading multiple FITS files into memory at once
-# and causing the program to MemoryError 
+# # DONE: ADD TRANSFORMS
 
-print("Reading data...")
-datasets = []
-for x in range(len(fitshelper.getFits())):
-    idxs = fitshelper.getFitsFileSlice(x)
-    dtaset = []
-    for z in range(len(range(idxs[0], idxs[1]))): # TODO: fix this 
-        dtaset.append(fits_dataset[z])
+# fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
+# fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
 
-    datasets.append(dtaset)
-print("Done. ")
 
-train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datasets), batch_size=args.batch_size, shuffle=True, **kwargs)
+# # this avoids loading multiple FITS files into memory at once
+# # and causing the program to MemoryError 
+
+# print("Reading data...")
+# datasets = []
+# for x in range(len(fitshelper.getFits())):
+#     idxs = fitshelper.getFitsFileSlice(x)
+#     dtaset = []
+#     for z in range(len(range(idxs[0], idxs[1]))): # TODO: fix this 
+#         dtaset.append(fits_dataset[z])
+
+#     datasets.append(dtaset)
+# print("Done. ")
+
+# train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datasets), batch_size=args.batch_size, shuffle=True, **kwargs)
 
 #test_loader = torch.utils.data.DataLoader(fits_dataset,
 #    batch_size=args.batch_size, shuffle=False, **kwargs)
@@ -95,36 +119,68 @@ train_loader = torch.utils.data.DataLoader(torch.utils.data.ConcatDataset(datase
 class AE(nn.Module):
     def __init__(self):
         super(AE, self).__init__()
-        self.encoder = encoder.Encoder()
+        self.encoder = encoder.Encoder(True)
         
         # Latent space
         
         # Decoder
-        self.deconv1 = nn.ConvTranspose2d(3, 6, kernel_size=3, stride=1, padding=1, output_padding=0)
-        self.deconv2 = nn.ConvTranspose2d(6, 12, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.deconv3 = nn.ConvTranspose2d(12, 6, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.deconv4 = nn.ConvTranspose2d(6, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.deconv1 = nn.ConvTranspose2d(4, 8, kernel_size=3, stride=1, padding=1, output_padding=0)
+        self.deconv2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.unpool = nn.MaxUnpool2d(2, stride=2)
+        self.deconv3 = nn.ConvTranspose2d(16, 8, kernel_size=3, stride=1, padding=1, output_padding=0)
+
+        self.deconv4 = nn.ConvTranspose2d(8, 3, kernel_size=3, stride=1, padding=1, output_padding=0)
         
         self.relu = nn.ReLU()
+
+        self.indices = None
+
+        self.dense1_bn = nn.BatchNorm1d(256)
+        self.fc = nn.Linear(256, 10)
+
+        self.soft = nn.Softmax(dim=1)
         
     def encode(self, x):
-        
-        return self.encoder(x)
-
+        (out, self.indices) = self.encoder(x)
+        return out
     
     def decode(self, z):
-        out = self.relu(self.deconv1(z))
-        # print("how big is this 1 ",out.size())
+        out = z
+        
+        out = self.relu(self.deconv1(out))
+        out = self.unpool(out, self.indices)
+        # print("how big is out 1 ",out.size())
         out = self.relu(self.deconv2(out))
-        # print("how big is this 2 ",out.size())
+        # print("how big is out 2 ",out.size())
+        
+        # print("how big is out pool ",out.size())
         out = self.relu(self.deconv3(out))
-        # print("how big is this 3 ",out.size())
+        # print("how big is out 3 ",out.size())
         out = self.deconv4(out)
+
+        
+        # print("how big is out 4 ",out.size())
+        return out
+
+    def classify(self, x):
+        # (out, _) = self.encoda(x)
+        # print(out.size())
+
+        out = x
+        out = out.view(out.size(0), -1)
+        # print(out.size())
+        out = self.dense1_bn(out) # TODO: try without this
+        out = self.fc(out)
+        out = self.soft(out)
+
         return out
 
     def forward(self, x):
         z = self.encode(x)
-        return self.decode(z)
+        ae_out = self.decode(z)
+        classy_out = self.classify(z)
+
+        return (ae_out, classy_out)
 
 model = AE()
 model.float()
@@ -133,73 +189,113 @@ if args.cuda:
 #Loss 
 MSE = nn.MSELoss(reduce=True)
 MSE.cuda()
-learning_rate = 1e-3
+
+CSL = nn.CrossEntropyLoss()
+CSL.cuda()
+
+
+learning_rate = 1e-4
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # weight_decay=5e-4
 scaler = StandardScaler()
 
 def train(epoch):
     model.train()
-    train_loss = 0
+    aeLmao_loss = 0
+    classyBoi_loss = 0
 
     # lossGraph = []
-    counter = 0 
+    total = 0 
+    correct = 0
 
-    for batch_idx, data in enumerate(train_loader):
+    for batch_idx, (data, targets) in enumerate(train_loader):
         data = data.float()
-        for x in data:
-            scaler.partial_fit(x[0]) # 0 because there is only one dimension
 
-        # normalizes the data 
-        for x in data:
-            x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
+
+        # for x in data:
+        #     scaler.partial_fit(x[0]) # 0 because there is only one dimension
+
+        # # # normalizes the data 
+        # for x in data:
+        #     x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
         
 
         data = Variable(data)
+        targets = Variable(targets)
+
         if args.cuda:
             data = data.cuda()
+            targets = targets.cuda()
+
         model.zero_grad()
-        output = model(data)
+        ae_output, classifier_output = model(data)
         
-        loss = MSE(output, data)
-        loss.backward(retain_graph=False)
+        ae_loss = MSE(ae_output, data)
+
+        ae_loss.backward(retain_graph=True)
+
+        classy_loss = CSL(classifier_output, targets)
+
+        classy_loss.backward(retain_graph=True)
+
         optimizer.step()
 
-        train_loss += loss.data[0]
+        aeLmao_loss += ae_loss.data[0]
 
+        classyBoi_loss += classy_loss.data[0]
+
+        _, predicted = classifier_output.max(1) # this is okay I think 
+        total += targets.size(0)
+        correct += predicted.eq(targets).sum().data[0]
         
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.10f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.10f}\tCLoss: {:.5f}\tAcc: {:.2f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
-                loss.data[0] / len(data)))
+                ae_loss.data[0] / len(data), classy_loss.data[0] / len(data), 100.*correct/total))
 
-        if batch_idx % args.img_interval == 0:
-            tmp = "snapshots/better_auto/" + str(epoch) + '_' + str(counter) + ".png"
-            counter += 1
-            dt = []
-            for x in range(len(data.data.cpu())):
-                dt.append(data.data.cpu()[x][0])
-                dt.append(torch.ones(data.data.cpu()[x][0].shape[1],4))
-            xy = []
-            xy.append(torch.cat((dt), 1))
-            xy.append(torch.ones(4, xy[0].shape[1]))
+        if batch_idx % 100 == 0:
+            n = min(data.size(0), 8)
+            comparison = torch.cat([data[:n],
+                                   ae_output[:n]])
+            save_image(comparison.data.cpu(),
+                       'snapshots/conv_vae/reconstruction_' + str(epoch) + str(batch_idx) +
+                       '.png', nrow=n)
 
-            dt = []
-            for x in range(len(output.data.cpu())):
-                dt.append(output.data.cpu()[x][0])
-                dt.append(torch.ones(output.data.cpu()[x][0].shape[1],4))
 
-            xy.append(torch.cat((dt), 1))
+        
+        
+        # correct += predicted.eq(targets).sum().item() OLD
+        
 
-            plt.imsave(tmp, torch.cat((xy), 0), cmap='gray')
+        # progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+        #     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
+        # if batch_idx % args.img_interval == 0:
+        #     tmp = "snapshots/better_auto/" + str(epoch) + '_' + str(counter) + ".png"
+        #     counter += 1
+        #     dt = []
+        #     for x in range(len(data.data.cpu())):
+        #         dt.append(data.data.cpu()[x][0])
+        #         dt.append(torch.ones(data.data.cpu()[x][0].shape[1],4))
+        #     xy = []
+        #     xy.append(torch.cat((dt), 1))
+        #     xy.append(torch.ones(4, xy[0].shape[1]))
+
+        #     dt = []
+        #     for x in range(len(output.data.cpu())):
+        #         dt.append(output.data.cpu()[x][0])
+        #         dt.append(torch.ones(output.data.cpu()[x][0].shape[1],4))
+
+        #     xy.append(torch.cat((dt), 1))
+
+        #     plt.imsave(tmp, torch.cat((xy), 0), cmap='gray')
 
         # lossGraph.append(loss.data[0] / len(data))
 
-    print('====> Epoch: {} Average loss: {:.4f}'.format(
-          epoch, train_loss / len(train_loader.dataset)))
+    print('====> Epoch: {} Average loss: {:.4f}\tCloss {:.10f}'.format(
+          epoch, aeLmao_loss / len(train_loader.dataset), classyBoi_loss / len(train_loader.dataset)))
 
-    torch.save(model.encoder.state_dict(), 'saved_models/encoder.pt') # saves the autoencoder
-    joblib.dump(scaler , 'saved_models/ae_scaler.pkl') # saves the normalized scaler
+    
 
     # plt.plot(lossGraph)
     # plt.ylabel('loss')
@@ -212,17 +308,19 @@ def train(epoch):
 #     model.eval()
 #     test_loss = 0
 #     # for i, (data, _) in enumerate(test_loader):
-#     for i, data in enumerate(test_loader):
+#     for i, (data, _) in enumerate(test_loader):
 #         data = data.float()
 #         if args.cuda:
 #             data = data.cuda()
 #         data = Variable(data, volatile=True)
-#         recon_batch, mu, logvar = model(data)
-#         test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
-#         if epoch == args.epochs and i == 0:
+#         output = model(data)
+#         loss = MSE(output, data)
+
+#         test_loss += loss.data[0]
+#         if i % 100 == 0:
 #             n = min(data.size(0), 8)
 #             comparison = torch.cat([data[:n],
-#                                    recon_batch[:n]])
+#                                    output[:n]])
 #             save_image(comparison.data.cpu(),
 #                        'snapshots/conv_vae/reconstruction_' + str(epoch) +
 #                        '.png', nrow=n)
@@ -249,6 +347,7 @@ for epoch in range(1, args.epochs + 1):
     #                'snapshots/conv_vae/sample_' + str(epoch) + '.png')
     # TODO: this saves the hidden layer, maybe use this at some point 
 
-
+torch.save(model.encoder.state_dict(), 'saved_models/encoder.pt') # saves the autoencoder
+# joblib.dump(scaler , 'saved_models/ae_scaler.pkl') # saves the normalized scaler
 
 

@@ -154,6 +154,7 @@ class GalaxyDataset2(Dataset): # TODO
         return self.galaxyHelp.getLength()
 
     def __getitem__(self, idx):
+        # print(idx)
         fileNo, fidx = self.galaxyHelp.getFileAndIdx(idx)
         coord, target = self.galaxyHelp.getCoordAndTarget(fileNo, fidx)
         # coord.center.x 
@@ -171,7 +172,8 @@ class GalaxyDataset2(Dataset): # TODO
             self.data = tmpFile 
             print("Moving onto file ", self.galaxyHelp.getFits()[fileNo])
             print("Galaxies so far..", self.tmpGalaxies)
-
+        print(tmpFile.shape)
+        print("x: " + str(x) + ":" + str(x+self.dimensions) + " y: " + str(y) + ":" + str(y+self.dimensions))
         crop_image = tmpFile[x:x+self.dimensions, y:y+self.dimensions]
 
         if self.transform:

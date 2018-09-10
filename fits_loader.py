@@ -21,7 +21,7 @@ from utils import progress_bar
 import random
 from regions import read_ds9, write_ds9
 
-default_dimens = 276
+default_dimens = 128
 
 class FitsHelper():
     def __init__(self, root_dir, dimensions=default_dimens):
@@ -201,8 +201,9 @@ class GalaxyDataset2(Dataset): # TODO
 
 class GalaxyDataset(Dataset):
     # TODO: SO MUCH I/O going on, maybe do what FitsDataset does and workaround
-    def __init__(self, root_dir, galaxies, transform=None):
-               
+    def __init__(self, root_dir, galaxies, transform=None, train=True):
+        self.train = train
+        
         self.galaxies = pd.read_csv(galaxies, delim_whitespace=True)
         self.fits_files = os.listdir(root_dir)
 
@@ -212,6 +213,8 @@ class GalaxyDataset(Dataset):
 
         galaxs = []
         blacklist = os.listdir('snapshots/galaxies/blacklist')
+        whitelist = os.listdir('snapshots/galaxies/whitelist')
+        # print(len(whitelist))
         galaxies = 0
         nongalax = 0
 
@@ -219,20 +222,37 @@ class GalaxyDataset(Dataset):
         
         for x in range(len(self.galaxies)):
             for y in range(len(self.fits_files)):
-                if self.galaxies.iloc[x, 0] in self.fits_files[y] and self.fits_files[y] not in blacklist: # index 0 is the ID of the file 
-                    data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
+                if (self.train):
+                    if self.galaxies.iloc[x, 0] in self.fits_files[y] and self.fits_files[y] not in blacklist: # index 0 is the ID of the file 
+                        data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
 
-                    if(self.galaxies.iloc[x,15] == 0):
-                        # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
-                        progress_bar(count, len(self.galaxies))
-                        count += 1
-                        targ = self.galaxies.iloc[x, 14]
-                        galaxs.append((self.fits_files[y], data.shape, targ)) # index 14 is the class in the galaxies file  
-                        if 0 < targ < 5:
-                            galaxies += 1
-                        else:
-                            nongalax += 1
-                    break
+                        if(self.galaxies.iloc[x,15] == 0):
+                            # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
+                            progress_bar(count, len(self.galaxies))
+                            count += 1
+                            targ = self.galaxies.iloc[x, 14]
+                            galaxs.append((self.fits_files[y], data.shape, targ)) # index 14 is the class in the galaxies file  
+                            if 0 < targ < 5:
+                                galaxies += 1
+                            else:
+                                nongalax += 1
+                        break
+                else:
+                    if self.galaxies.iloc[x, 0] in self.fits_files[y] and self.fits_files[y] in whitelist: # index 0 is the ID of the file 
+                        data = fits.getdata(self.root_dir + "/" + self.fits_files[y])
+
+                        if(self.galaxies.iloc[x,15] == 0):
+                            # print(str(count) + ' ' + str(data.shape) + ' ' + self.fits_files[y])
+                            progress_bar(count, 400)
+                            count += 1
+                            targ = self.galaxies.iloc[x, 14]
+                            galaxs.append((self.fits_files[y], data.shape, targ)) # index 14 is the class in the galaxies file  
+                            if 0 < targ < 5:
+                                galaxies += 1
+                            else:
+                                nongalax += 1
+                        break
+
         
         print("Galaxies:", galaxies)
         print("Nongalax:", nongalax)
@@ -250,15 +270,17 @@ class GalaxyDataset(Dataset):
         # idx is index to a single galaxy fits image
         img = self.root_dir + '/' + self.galaxies[idx][0] 
         img = fits.getdata(img, ext=0) 
-
         d = 110
+        if (self.train == False): 
+            d = 96
+
         x1 = int(round((self.galaxies[idx][1][0] - d) / 2.))
         y1 = int(round((self.galaxies[idx][1][1] - d) / 2.))
         img = img[x1:x1+d,y1:y1+d]
 
-        if (target == 1):
-            tmp = "snapshots/nongalax/" + str(self.galaxies[idx][0]) + ".png"
-            plt.imsave(tmp, img, cmap='gray')
+        # if (target == 1):
+        #     tmp = "snapshots/nongalax/" + str(self.galaxies[idx][0]) + ".png"
+        #     plt.imsave(tmp, img, cmap='gray')
 
         if self.transform: # DONE: random crop images 256 * 256
             img = self.transform(img)
@@ -267,20 +289,20 @@ class GalaxyDataset(Dataset):
         img = img[..., numpy.newaxis]
         img = img.transpose(2, 0, 1)
 
-        # RANDOM VERTICAL FLIP 
-        if random.random() < 0.5:
-            img[0] = numpy.flip(img[0], 1)
+        if (self.train == True):
+            # RANDOM VERTICAL FLIP 
+            if random.random() < 0.5:
+                img[0] = numpy.flip(img[0], 1)
 
-        # RANDOM HORIZONTAL FLIP
-        if random.random() < 0.5:
-            img[0] = numpy.flip(img[0], 0)
+            # RANDOM HORIZONTAL FLIP
+            if random.random() < 0.5:
+                img[0] = numpy.flip(img[0], 0)
 
-        # RANDOM ROTATE 
-        n = random.choice([0, 1, 2, 3])
-        img[0] = numpy.rot90(img[0], n)
+            # RANDOM ROTATE 
+            n = random.choice([0, 1, 2, 3])
+            img[0] = numpy.rot90(img[0], n)
 
         sample = torch.from_numpy(img)
-        # RANDOM HORIZONTAL FLIP 
         
 
         # DONE: return a tuple (input, target) 
@@ -365,6 +387,19 @@ class FitsDataset(Dataset):
         # Converting to one channel tensor 
         crop_image = crop_image[..., numpy.newaxis]
         crop_image = crop_image.transpose(2, 0, 1)
+
+        # if (self.train == True):
+            # RANDOM VERTICAL FLIP 
+        if random.random() < 0.5:
+            crop_image[0] = numpy.flip(crop_image[0], 1)
+
+        # RANDOM HORIZONTAL FLIP
+        if random.random() < 0.5:
+            crop_image[0] = numpy.flip(crop_image[0], 0)
+
+        # RANDOM ROTATE 
+        n = random.choice([0, 1, 2, 3])
+        crop_image[0] = numpy.rot90(crop_image[0], n)
 
         sample = torch.from_numpy(crop_image)
         

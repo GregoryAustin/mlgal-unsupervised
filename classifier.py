@@ -19,10 +19,13 @@ import resnet
 import fits_loader
 from utils import progress_bar
 
+import utils
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.externals import joblib
 
 import DankNet
+# import conv_ae_og
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -39,47 +42,67 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 # DONE: print out 256 * 256 images and check how they looking (galaxies might still not be visible because of the output)
 # Data
-print('==> Preparing data..')
-
-transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-])
-
-transform_test = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-])
-
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
-
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
-
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-
-
-
-# fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
-# galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
-
-# galaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/galaxies'
-# nongalaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/nongalaxies'
-# fitsdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/fits'
-
-# # DONE: normalize 
+# print('==> Preparing data..')
 
 # transform_train = transforms.Compose([
-#     fits_loader.RandomCrop(96)
+#     transforms.RandomCrop(32, padding=4),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.ToTensor(),
+#     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 # ])
 
-# datasets = []
+# transform_test = transforms.Compose([
+#     transforms.ToTensor(),
+#     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+# ])
 
-# # trainset1 = fits_loader.GalaxyDataset(fitsDir, galax, transform_train) # TODO: split the train set and test set 
-# # datasets.append(trainset1)
+# trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+# trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
+
+# testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+# testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+
+# classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
+
+
+fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
+galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
+
+galaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/galaxies'
+nongalaxdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/nongalaxies'
+# fitsdir = '/home/greg/Desktop/LabelledData/NN project/galaxnew/fits'
+
+# DONE: normalize 
+
+transform_train = transforms.Compose([
+    fits_loader.RandomCrop(96)
+])
+
+datasets = []
+
+trainset = fits_loader.GalaxyDataset(fitsDir, galax, transform_train) # TODO: split the train set and test set 
+testset = fits_loader.GalaxyDataset(fitsDir, galax, None, False)
+
+# print(utils.get_mean_and_std(torch.utils.data.ConcatDataset(trainset,testset)))
+
+# print(len(testset))
+
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
+testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True, num_workers=2)
+
+
+# print("Scaling the dataset.. ")
+# scaler = StandardScaler()
+# for x in trainset:
+#     scaler.partial_fit(x[0][0])
+# for x in testset:
+#     scaler.partial_fit(x[0][0])
+# print("Done.")
+
+
+
+# datasets.append(trainset1)
 
 # testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test) 
 # testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
@@ -109,16 +132,18 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 # Model
 print('==> Building model..')
 # net = VGG('VGG19')
+# conv_ae_og.trainAndTest(20)
 
 encoda = encoder.Encoder(False)
-encoda.load_state_dict(torch.load('saved_models/encoder.pt'))
+encoda.load_state_dict(torch.load('saved_models/dankCoder.pt'))
 
 # net = resnet.ResNet34(encoder)
 # net = net.float()
 
-# net = DankNet.DankEncodeNet(encoda)
-net = DankNet.DankNet()
-# net = DankNet.TrashNet(encoda)
+net = DankNet.DankEncodeNet(encoda)
+# net = DankNet.DankNet()
+# net = DankNet.TrashNet()
+# net = DankNet.TrashEncodeNet(encoda)
 net = net.float()
 
 # net = PreActResNet18()
@@ -155,8 +180,8 @@ if device == 'cuda':
     criterion.cuda()
 optimizer = optim.Adam(net.parameters(), lr=args.lr) # weight_decay=5e-4)
 # optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-scaler = StandardScaler() #joblib.load('saved_models/ae_scaler.pkl') # loading saved scaler for normalization !! 
-
+# scaler = StandardScaler() #joblib.load('saved_models/ae_scaler.pkl') # loading saved scaler for normalization !! 
+# scaler.fit(trainset)
 def is_number_tryexcept(s):
     """ Returns True is string is a number. """
     try:
@@ -178,15 +203,8 @@ def train(epoch):
         # print(batch_idx)
         # normalizes the data 
         # for x in inputs:
-
-        #     if (np.all(np.isfinite(x[0])) == True):
-        #         scaler.partial_fit(x[0]) # 0 because there is only one dimension
-        #     else: 
-        #         print("Yo " + str(batch_idx) + " is messed up !!!")
-        
-        # for x in inputs:
-        #      if (np.all(np.isfinite(x[0])) == True):
-        #         x[0] = torch.from_numpy(scaler.transform(x[0])) 
+        #     x[0] = torch.from_numpy(scaler.transform(x[0])) 
+        inputs = (inputs-torch.mean(inputs))/torch.std(inputs)
 
 
         inputs = Variable(inputs)
@@ -219,6 +237,10 @@ def test(epoch): # TODO: uncomment when you've done TODO: split dataset into tes
     total = 0
     # with torch.no_grad():
     for batch_idx, (inputs, targets) in enumerate(testloader):
+        # for x in inputs:
+        #     x[0] = torch.from_numpy(scaler.transform(x[0])) 
+        inputs = (inputs-torch.mean(inputs))/torch.std(inputs)
+
         inputs, targets = Variable(inputs, volatile=True), Variable(targets, volatile=True)
         if device == 'cuda':
             inputs = inputs.cuda()
@@ -250,6 +272,124 @@ def test(epoch): # TODO: uncomment when you've done TODO: split dataset into tes
         best_acc = acc
 
 
-for epoch in range(start_epoch, start_epoch+200):
-    train(epoch)
-    test(epoch)
+# for epoch in range(start_epoch, start_epoch+200):
+#     train(epoch)
+#     test(epoch)
+
+# Note: use global or take these defs out of their definitions to use the functions 
+
+def experiment1():
+    runs = 10
+
+    best_accList = []
+    for run in range(0, runs):
+        print("RUN: ", run)
+        for epoch in range(start_epoch+1, start_epoch+50+1):
+            train(epoch)
+            test(epoch)
+
+
+        print(best_acc)
+
+        best_accList.append(best_acc)
+        net = DankNet.DankNet()
+        # net = DankNet.TrashNet(encoda)
+        net = net.float()
+        net = net.cuda()
+        optimizer = optim.Adam(net.parameters(), lr=args.lr)
+        best_acc = 0
+        
+    print("Mean: " + str(np.mean(best_accList)) + " min: " + str(min(best_accList)) + " max: " + str(max(best_accList)))
+    # def test(runs=10, epochs=50):
+
+# def experiment2():
+runs = 10
+
+best_accList = []
+for run in range(0, runs):
+    # print(best_acc)
+    print("RUN: ", run)
+
+    for epoch in range(start_epoch+1, start_epoch+50+1):
+        train(epoch)
+        test(epoch)
+
+
+    print(best_acc)
+    best_accList.append(best_acc)
+
+    # conv_ae_og.trainAndTest(20)
+
+    # encoda = encoder.Encoder(False)
+    # encoda.load_state_dict(torch.load('saved_models/encoder.pt'))
+
+    net = DankNet.DankEncodeNet(encoda)
+    # net = DankNet.TrashNet(encoda)
+    net = net.float()
+    net = net.cuda()
+    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    best_acc = 0
+    
+print("Mean: " + str(np.mean(best_accList)) + " min: " + str(min(best_accList)) + " max: " + str(max(best_accList)))
+# def test(runs=10, epochs=50):
+def experiment3(): 
+    runs = 10
+
+    best_accList = []
+    for run in range(0, runs):
+        # print(best_acc)
+        print("RUN: ", run)
+
+        for epoch in range(start_epoch+1, start_epoch+50+1):
+            train(epoch)
+            test(epoch)
+
+
+        print(best_acc)
+        best_accList.append(best_acc)
+
+        # conv_ae_og.trainAndTest(20)
+
+        # encoda = encoder.Encoder(False)
+        # encoda.load_state_dict(torch.load('saved_models/encoder.pt'))
+
+        # net = DankNet.DankEncodeNet(encoda)
+        net = DankNet.TrashNet()
+        # net = DankNet.TrashNet(encoda)
+        net = net.float()
+        net = net.cuda()
+        optimizer = optim.Adam(net.parameters(), lr=args.lr)
+        best_acc = 0
+            
+    print("Mean: " + str(np.mean(best_accList)) + " min: " + str(min(best_accList)) + " max: " + str(max(best_accList)))
+
+def experiment4():
+    runs = 10
+
+    best_accList = []
+    for run in range(0, runs):
+        # print(best_acc)
+        print("RUN: ", run)
+
+        for epoch in range(start_epoch+1, start_epoch+50+1):
+            train(epoch)
+            test(epoch)
+
+
+        print(best_acc)
+        best_accList.append(best_acc)
+
+        # conv_ae_og.trainAndTest(20)
+
+        # encoda = encoder.Encoder(False)
+        # encoda.load_state_dict(torch.load('saved_models/dankCoder.pt'))
+
+        net = DankNet.TrashEncodeNet(encoda)
+        # net = DankNet.TrashNet(encoda)
+        net = net.float()
+        net = net.cuda()
+        optimizer = optim.Adam(net.parameters(), lr=args.lr)
+        best_acc = 0
+        
+    print("Mean: " + str(np.mean(best_accList)) + " min: " + str(min(best_accList)) + " max: " + str(max(best_accList)))    
+

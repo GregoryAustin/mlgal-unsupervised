@@ -15,6 +15,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 import encoder
+import cifarencoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.externals import joblib
 
@@ -33,8 +34,10 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
-parser.add_argument('--img-interval', type=int, default=500, metavar='N',
+parser.add_argument('--img-interval', type=int, default=5000, metavar='N',
                     help='how many batches to wait before saving images')
+parser.add_argument('--ds', type=int, default = 1, help='dataset: 1: galaxy, 2: CIFAR10')
+
 # parser.add_argument('--hidden-size', type=int, default=20, metavar='N',
                    # help='how big is z')
 # parser.add_argument('--intermediate-size', type=int, default=128, metavar='N',
@@ -57,65 +60,53 @@ kwargs = {'num_workers': 1} if args.cuda else {}
 ##################################################################################
 # print('==> Preparing data..')
 
-# transform_train = transforms.Compose([
-#     transforms.RandomCrop(32, padding=4),
-#     transforms.RandomHorizontalFlip(),
-#     transforms.ToTensor(),
-#     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-# ])
 
-# transform_test = transforms.Compose([
-#     transforms.ToTensor(),
-#     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-# ])
+if args.ds == 1:
+    fitsDir = '/media/greg/Main Disk 2/UNLABELED DATA/bulge'
 
-# trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-# train_loader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
-
-# testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-# test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+    fitsDir = '/home/greg/Desktop/Galaxyfits'
 
 
 
-fitsDir = '/media/greg/Main Disk 2/UNLABELED DATA/bulge'
+    data_transform = transforms.Compose([
+            fits_loader.RandomCrop(96)
+        ])
 
-fitsDir = '/home/greg/Desktop/Galaxyfits'
+
+    # DONE: ADD TRANSFORMS
+
+    fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
+    fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
 
 
+    fitsTestDir = '/home/greg/Desktop/Galaxyfitstest'
+    fitsTesthelper = fits_loader.FitsHelper(root_dir=fitsTestDir)
+    fits_testset = fits_loader.FitsDataset(root_dir=fitsTestDir, fitshelper=fitsTesthelper, transform=data_transform)
 
-data_transform = transforms.Compose([
-        fits_loader.RandomCrop(96)
+
+    train_loader = torch.utils.data.DataLoader(fits_dataset, batch_size=args.batch_size, shuffle=False, **kwargs)
+    test_loader = torch.utils.data.DataLoader(fits_testset, batch_size=args.batch_size, shuffle=False, **kwargs)
+
+elif args.ds == 2:
+
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
 
-# DONE: ADD TRANSFORMS
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
 
-# fitshelper = fits_loader.FitsHelper(root_dir=fitsDir)
-# fits_dataset = fits_loader.FitsDataset(root_dir=fitsDir, fitshelper=fitshelper, transform=data_transform)
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-
-fitsDir = '/home/greg/Desktop/LabelledData/NN project/galaxies/'
-galax = '/home/greg/Desktop/LabelledData/NN project/all_fits.dat'
-fits_dataset = fits_loader.GalaxyDataset(fitsDir, galax, data_transform)
-
-# this avoids loading multiple FITS files into memory at once
-# and causing the program to MemoryError 
-
-# print("Reading data...")
-# datasets = []
-# for x in range(len(fitshelper.getFits())):
-#     idxs = fitshelper.getFitsFileSlice(x)
-#     dtaset = []
-#     for z in range(idxs[0], idxs[1]): # TODO: fix this 
-#         dtaset.append(fits_dataset[z])
-
-#     datasets.append(dtaset)
-# print("Done. ")
-
-train_loader = torch.utils.data.DataLoader(fits_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
-
-# test_loader = torch.utils.data.DataLoader(fits_dataset,
-   # batch_size=args.batch_size, shuffle=False, **kwargs)
 
 ##################################################################################
 #                          END DATA LOAD
@@ -125,12 +116,13 @@ train_loader = torch.utils.data.DataLoader(fits_dataset, batch_size=args.batch_s
 class AE(nn.Module):
     def __init__(self):
         super(AE, self).__init__()
-        encoda = encoder.Encoder(True)
-        # encoda.load_state_dict(torch.load('saved_models/encoder0.pt'))
-
+        if args.ds == 1:
+            encoda = encoder.Encoder(True)
+        elif args.ds == 2:
+            encoda = cifarencoder.Encoder(True)
 
         self.encoder = encoda
-        
+
         # Latent space
         
         # Decoder
@@ -138,8 +130,10 @@ class AE(nn.Module):
         self.deconv2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.unpool = nn.MaxUnpool2d(2, stride=2)
         self.deconv3 = nn.ConvTranspose2d(16, 8, kernel_size=3, stride=1, padding=1, output_padding=0)
-
-        self.deconv4 = nn.ConvTranspose2d(8, 1, kernel_size=3, stride=1, padding=1, output_padding=0)
+        if args.ds == 1:
+            self.deconv4 = nn.ConvTranspose2d(8, 1, kernel_size=3, stride=1, padding=1, output_padding=0)
+        elif args.ds == 2:
+            self.deconv4 = nn.ConvTranspose2d(8, 3, kernel_size=3, stride=1, padding=1, output_padding=0)
         
         self.relu = nn.ReLU()
 
@@ -194,17 +188,17 @@ def train(epoch):
 
     # lossGraph = []
     counter = 0 
-
+    # change to (data, _) for CIFAR or labeled data
     for batch_idx, (data, _) in enumerate(train_loader):
         data = data.float()
 
-        data = (data-torch.mean(data))/torch.std(data)
-        # for x in data:
-        #     scaler.partial_fit(x[0]) # 0 because there is only one dimension
+        # data = (data-torch.mean(data))/torch.std(data)
+        for x in data:
+            scaler.partial_fit(x[0]) # 0 because there is only one dimension
 
         # # # # normalizes the data 
-        # for x in data:
-        #     x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
+        for x in data:
+            x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
         
 
         data = Variable(data)
@@ -265,37 +259,39 @@ def train(epoch):
 
     # print(data.data.cpu()[0][0].shape)
 
-# def test(epoch):
-#     model.eval()
-#     test_loss = 0
-#     # for i, (data, _) in enumerate(test_loader):
-#     for i, (data, _) in enumerate(test_loader):
-#         data = data.float()
-#         for x in data:
-#             scaler.partial_fit(x[0]) # 0 because there is only one dimension
+def test(epoch):
+    model.eval()
+    test_loss = 0
+    for i, (data, _) in enumerate(test_loader):
+    # for i, data in enumerate(test_loader):
+        data = data.float()
+        # for x in data:
+        #     scaler.partial_fit(x[0]) # 0 because there is only one dimension
 
-#         # # # normalizes the data 
-#         for x in data:
-#             x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
+        # # # # normalizes the data 
+        # for x in data:
+        #     x[0] = torch.from_numpy(scaler.transform(x[0])) # new 
+
+        data = (data-torch.mean(data))/torch.std(data)
 
 
-#         if args.cuda:
-#             data = data.cuda()
-#         data = Variable(data, volatile=True)
-#         output = model(data)
-#         loss = MSE(output, data)
+        if args.cuda:
+            data = data.cuda()
+        data = Variable(data, volatile=True)
+        output = model(data)
+        loss = MSE(output, data)
 
-#         test_loss += loss.data[0]
-#         if i % 100 == 0:
-#             n = min(data.size(0), 8)
-#             comparison = torch.cat([data[:n],
-#                                    output[:n]])
-#             save_image(comparison.data.cpu(),
-#                        'snapshots/conv_vae/reconstruction_' + str(epoch) +
-#                        '.png', nrow=n)
+        test_loss += loss.data[0]
+        # if i % 100 == 0:
+        #     n = min(data.size(0), 8)
+        #     comparison = torch.cat([data[:n],
+        #                            output[:n]])
+        #     save_image(comparison.data.cpu(),
+        #                'snapshots/conv_vae/reconstruction_' + str(epoch) +
+        #                '.png', nrow=n)
 
-#     test_loss /= len(test_loader.dataset)
-#     print('====> Test set loss: {:.4f}'.format(test_loss))
+    test_loss /= len(test_loader.dataset)
+    print('====> Test set loss: {:.4f}'.format(test_loss))
 
 
 # tester(1)
@@ -318,23 +314,26 @@ def train(epoch):
 
 
 def trainAndTest(epochs=5, encNum=1):
-    global model, optimizer 
-    model = AE()
-    # net = DankNet.TrashNet(encoda)
-    model = model.float()
-    model = model.cuda()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    for run in range(0, encNum):
+        global model, optimizer 
+        model = AE()
+        # net = DankNet.TrashNet(encoda)
+        model = model.float()
+        model = model.cuda()
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    for epoch in range(1, epochs + 1):
-        train(epoch) 
-        # test(epoch) 
+        for epoch in range(1, epochs + 1):
+            train(epoch) 
+            test(epoch) 
+        if args.ds == 1:
+            torch.save(model.encoder.state_dict(), 'saved_models/encoder' + str(run) + '.pt')
+        if args.ds == 2:
+            torch.save(model.encoder.state_dict(), 'cifar_models/encoder' + str(run) + '.pt')
 
-    # torch.save(model.encoder.state_dict(), 'saved_models/encoder' + str(encNum) + '.pt')
-
-
-
-trainAndTest(10, 1)
-
+if args.ds == 1:
+    trainAndTest(1, 10)
+elif args.ds == 2:
+    trainAndTest(10,10)
  # saves the autoencoder
 # joblib.dump(scaler , 'saved_models/ae_scaler.pkl') # saves the normalized scaler
 

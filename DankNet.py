@@ -5,17 +5,22 @@ from torch.autograd import Variable
 import encoder
 
 class DankNet(nn.Module):
-    def __init__(self):
+    def __init__(self, galaxy=True):
         super(DankNet, self).__init__()
         # input is 1 * 96 * 96
+        self.galaxy = galaxy
         self.relu = nn.ReLU()
         self.noise = GaussianNoise(0.01) 
-
-        self.down1 = same(1, 32) # self.down1 = same(3, 32) # CIFAR 10
+        if galaxy: 
+            self.down1 = same(1, 32)
+        else:
+            self.down1 = same(3, 32) # CIFAR 10
         
         self.pool = nn.MaxPool2d(2, stride=2)
 
-        # self.conv2_bn = nn.BatchNorm2d(32)
+        if not galaxy:
+            self.conv2_bn = nn.BatchNorm2d(32) # CIFAR 10
+
         self.down2 = same(32, 64)
         
         self.down3 = same(64, 128)
@@ -29,7 +34,11 @@ class DankNet(nn.Module):
         # self.fc2 = one(128, 32)
 
         self.dense1_bn = nn.BatchNorm1d(128)
-        self.fc3 = nn.Linear(128, 2, bias=False) # self.fc3 = nn.Linear(128, 10, bias=False) # CIFAR 10
+
+        if galaxy:
+            self.fc3 = nn.Linear(128, 2, bias=False) # GALAXY
+        else:
+            self.fc3 = nn.Linear(128, 10, bias=False) # CIFAR 10
 
         self.soft = nn.Softmax(dim=1)
 
@@ -74,11 +83,12 @@ class DankNet(nn.Module):
         # out = self.dropout(out)
         # print(out.size())
 
-        out = torch.mean(out, dim=2, keepdim=True) # the best one didn't have this remember # this wasnt in cifar 10 
-        # print(out.size())
+        if self.galaxy:
+            out = torch.mean(out, dim=2, keepdim=True) # this wasnt in cifar 10 
+            # print(out.size())
 
-        out = torch.mean(out, dim=3, keepdim=True) # this wasnt in cifar 10 
-        # print(out.size())
+            out = torch.mean(out, dim=3, keepdim=True) # this wasnt in cifar 10 
+            # print(out.size())
 
         out = self.relu(self.fc1(out))
         # print(out.size())
@@ -86,12 +96,14 @@ class DankNet(nn.Module):
         # print(out.size())
         out = out.view(out.size()[0], -1)
         # print(out.size())
-        # out = self.dense1_bn(out)
+        if not self.galaxy:
+            out = self.dense1_bn(out)
+        
         out = self.fc3(out)
         # print(out.size())
         # print(out.size())
 
-        # out = self.soft(out)
+        out = self.soft(out)
 
         return out
 
@@ -101,8 +113,10 @@ class DankNet(nn.Module):
 # DankEncodeNet with an Encoder for Galaxies is missing pooling layer 5 because of dimensionality
 
 class DankEncodeNet(nn.Module):
-    def __init__(self, encoda):
+    def __init__(self, encoda, galaxy):
         super(DankEncodeNet, self).__init__()
+
+        self.galaxy = galaxy
         # input is 1 * 96 * 96
         # input is 4 * 8 * 8
 
@@ -124,7 +138,11 @@ class DankEncodeNet(nn.Module):
         # self.fc2 = one(128, 32)
 
         self.dense1_bn = nn.BatchNorm1d(128)
-        self.fc3 = nn.Linear(128, 10, bias=False)
+
+        if galaxy:
+            self.fc3 = nn.Linear(128, 2, bias=False)
+        else:
+            self.fc3 = nn.Linear(128, 10, bias=False)
 
         self.soft = nn.Softmax(dim=1)
 
@@ -144,43 +162,45 @@ class DankEncodeNet(nn.Module):
         out = self.down3(out)
         out = self.pool(out)
         # print(out.size())
+        if self.galaxy:
+            out = self.down4(out)
+            out = self.pool(out)
+            # print(out.size())
 
-        out = self.down4(out)
-        out = self.pool(out)
-        # print(out.size())
+            out = self.down5(out)
+            # out = self.pool(out) NO POOLING THIS LAYER
+            # print(out.size())
 
-        out = self.down5(out)
-        # out = self.pool(out) NO POOLING THIS LAYER
-        # print(out.size())
-
-        # out = torch.mean(out, dim=2, keepdim=True) # the best one didn't have this remember
-        # print(out.size())
-
-        # out = torch.mean(out, dim=3, keepdim=True)
-        # print(out.size())
-
-        out = self.relu(self.fc1(out))
+            out = self.relu(self.fc1(out))
         # print(out.size())
         # out = self.fc2(out)
         # print(out.size())
         out = out.view(out.size()[0], -1)
         # print(out.shape)
-        # out = self.dense1_bn(out)
+
+        if not self.galaxy:
+            out = self.dense1_bn(out)
+        
         out = self.fc3(out)
         # print(out.size())
         # print(out.size())
 
-        # out = self.soft(out)
+        out = self.soft(out)
 
         return out
 
 class TrashEncodeNet(nn.Module):
-    def __init__(self, encoda):
+    def __init__(self, encoda, galaxy):
         super(TrashEncodeNet, self).__init__()
         self.encoda = encoda # 4, 8, 8
+        self.galaxy = galaxy
 
-        # self.dense1_bn = nn.BatchNorm1d(2304) # USED 256 for CIFAR 10 # USED 2304 for galaxies
-        self.fc = nn.Linear(2304, 10)
+        self.dense1_bn = nn.BatchNorm1d(256) # USED 256 for CIFAR 10 # USED 2304 for galaxies
+        
+        if galaxy:
+            self.fc = nn.Linear(2304, 2)
+        else: 
+            self.fc = nn.Linear(256, 10)
 
         self.soft = nn.Softmax(dim=1)
 
@@ -192,18 +212,24 @@ class TrashEncodeNet(nn.Module):
         
         out = out.view(out.size(0), -1)
         # print(out.size())
-        # out = self.dense1_bn(out) # TODO: try without this
+        if not self.galaxy:
+            out = self.dense1_bn(out) # TODO: try without this
         out = self.fc(out)
         out = self.soft(out)
 
         return out
 
 class TrashNet(nn.Module):
-    def __init__(self):
+    def __init__(self, galaxy):
         super(TrashNet, self).__init__()
 
-        self.dense1_bn = nn.BatchNorm1d(9216) # CIFAR USED 3072
-        self.fc = nn.Linear(9216, 10)
+        self.galaxy = galaxy
+        if galaxy:
+            self.dense1_bn = nn.BatchNorm1d(9216) # CIFAR USED 3072
+            self.fc = nn.Linear(9216, 2)
+        else:
+            self.dense1_bn = nn.BatchNorm1d(3072) # CIFAR USED 3072
+            self.fc = nn.Linear(3072, 10)
 
         self.soft = nn.Softmax(dim=1)
 
@@ -214,7 +240,9 @@ class TrashNet(nn.Module):
         out = x
         out = out.view(out.size(0), -1)
         # print(out.size())
-        # out = self.dense1_bn(out) # (CIFAR 10 used this)
+        if not self.galaxy:
+            out = self.dense1_bn(out) # (CIFAR 10 used this)
+        
         out = self.fc(out)
         out = self.soft(out)
 
